@@ -1,6 +1,6 @@
 # Pesona.io
 
-AI-native personal beauty & body coach for Indonesia. Handles skincare routines, weight management, body recomposition, and appearance improvement — powered by Claude as the AI companion.
+AI-native personal beauty & body coach for Indonesia. Handles skincare routines, weight management, body recomposition, and appearance improvement — powered by Gemini as the AI coach.
 
 ## Tech Stack
 - Next.js 15 + TypeScript
@@ -16,7 +16,7 @@ Wellness & coaching product (NOT medical/telehealth). Strictly in the wellness l
 - skin_profiles: user skin type, concerns, quiz answers
 - routines: morning/evening skincare routines with product recommendations
 - photo_progress: timestamped skin/body photos (Supabase Storage with RLS)
-- ai_conversations: chat history with the Claude coach
+- ai_conversations: chat history with the Gemini AI coach
 - products: Indonesian skincare product database with affiliate links
 
 ## Brand Voice
@@ -24,6 +24,17 @@ Warm, Bahasa Indonesia native, like a knowledgeable best friend who helps you be
 
 ## Current Phase
 Phase 1 MVP — skincare-first, targeting Indonesian women. Body/fitness modules come later.
+
+## Pricing
+- Rp 59,000/month — Basic (skincare routine, AI coach chat, progress photos)
+- Rp 99,000/month — Pro (+ body coaching, advanced skin analysis, product deals)
+
+## App Navigation (Bottom Tabs)
+1. **Home** (`/dashboard`) — Skin profile summary, today's routine, tips
+2. **Routine** (`/log`) — Skincare routine log & tracking
+3. **Coach** (`/chat`) — AI beauty coach (Gemini-powered)
+4. **Progress** (`/friends`) — Photo progress tracking (repurposed route)
+5. **Profile** (`/profile`) — Account settings, preferences
 
 ## Commands
 - `npm run dev` — Start dev server (port 3000)
