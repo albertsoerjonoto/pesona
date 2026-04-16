@@ -39,7 +39,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-dvh bg-bg text-text-primary">
       {/* Nav */}
-      <header className="fixed top-0 inset-x-0 z-50 bg-bg/80 backdrop-blur-md border-b border-border">
+      <header className="fixed top-0 inset-x-0 z-50 bg-bg/80 backdrop-blur-md border-b border-border" role="banner">
         <div className="max-w-5xl mx-auto flex items-center justify-between px-6 h-16">
           <span className="text-lg font-bold">Pesona.io</span>
           <div className="flex items-center gap-3">
@@ -187,7 +187,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-6 border-t border-border">
+      <footer className="py-12 px-6 border-t border-border" role="contentinfo">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="text-sm font-semibold">Pesona.io</span>
           <p className="text-xs text-text-tertiary">

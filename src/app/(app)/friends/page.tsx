@@ -139,6 +139,7 @@ export default function ProgressPage() {
         capture="user"
         onChange={handleUpload}
         className="hidden"
+        aria-label="Upload photo"
       />
 
       {/* Stats */}
