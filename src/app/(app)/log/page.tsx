@@ -271,20 +271,28 @@ export default function LogPage() {
           {(() => {
             const cells = [];
             const now = new Date();
+            // Helper: local date to YYYY-MM-DD string (consistent with DB)
+            const toLocalDateStr = (d: Date) => {
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              return `${y}-${m}-${day}`;
+            };
             // Start from 30 days ago, aligned to Monday
             const start = new Date(now);
             start.setDate(start.getDate() - 29);
             // Align to start of week (Monday = 1)
             const dayOfWeek = start.getDay();
-            const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-            start.setDate(start.getDate() - offset);
+            const alignOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            start.setDate(start.getDate() - alignOffset);
 
             const endDate = new Date(now);
-            endDate.setDate(endDate.getDate() + (7 - (now.getDay() === 0 ? 7 : now.getDay())));
+            const endDayOfWeek = now.getDay();
+            endDate.setDate(endDate.getDate() + (7 - (endDayOfWeek === 0 ? 7 : endDayOfWeek)));
 
             const cursor = new Date(start);
             while (cursor <= endDate) {
-              const dateStr = cursor.toISOString().split('T')[0];
+              const dateStr = toLocalDateStr(cursor);
               const cal = calendarData[dateStr];
               const isFuture = cursor > now;
               const isToday = dateStr === today;

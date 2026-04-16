@@ -186,7 +186,9 @@ export async function POST(req: NextRequest) {
 
     // Trigger memory compression every 20 messages (fire and forget)
     if (totalMsgCount > 0 && totalMsgCount % 20 === 0) {
-      compressMemory(user.id, apiKey).catch(() => {});
+      compressMemory(user.id, apiKey).catch(err => {
+        console.error('Memory compression failed:', err);
+      });
     }
 
     return NextResponse.json(parsed);

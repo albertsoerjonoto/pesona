@@ -105,10 +105,10 @@ export default function DashboardPage() {
         .limit(1)
         .single();
 
-      if (latestPhoto?.ai_analysis) {
+      if (latestPhoto?.ai_analysis && typeof latestPhoto.ai_analysis === 'object') {
         const analysis = latestPhoto.ai_analysis as Record<string, unknown>;
         if (typeof analysis.overall_score === 'number') {
-          setLatestScore(analysis.overall_score);
+          setLatestScore(Math.min(100, Math.max(0, analysis.overall_score)));
         }
         setLastPhotoDate(latestPhoto.taken_at);
       } else {
@@ -119,7 +119,7 @@ export default function DashboardPage() {
           .eq('user_id', user.id)
           .order('taken_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
         if (anyPhoto) setLastPhotoDate(anyPhoto.taken_at);
       }
 

@@ -6,7 +6,7 @@ VALUES (
   'skin-photos',
   'skin-photos',
   false,
-  5242880, -- 5MB max
+  20971520, -- 20MB max (matches client-side MAX_FILE_SIZE)
   ARRAY['image/jpeg', 'image/png', 'image/webp']
 )
 ON CONFLICT (id) DO NOTHING;

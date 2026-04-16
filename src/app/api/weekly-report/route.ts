@@ -60,7 +60,7 @@ export async function GET() {
         .from('skin_profiles')
         .select('skin_type, concerns, skin_goals')
         .eq('user_id', user.id)
-        .single(),
+        .maybeSingle(),
     ]);
 
     const photos = photosRes.data || [];
@@ -133,9 +133,18 @@ export async function GET() {
         });
 
         try {
-          aiReport = JSON.parse(response.text || '{}');
+          const parsed = JSON.parse(response.text || '{}');
+          // Normalize: ensure all expected fields exist with correct types
+          aiReport = {
+            summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+            highlights: Array.isArray(parsed.highlights) ? parsed.highlights.filter((h: unknown) => typeof h === 'string') : [],
+            areas_to_improve: Array.isArray(parsed.areas_to_improve) ? parsed.areas_to_improve.filter((a: unknown) => typeof a === 'string') : [],
+            routine_adjustment: typeof parsed.routine_adjustment === 'string' ? parsed.routine_adjustment : null,
+            motivation: typeof parsed.motivation === 'string' ? parsed.motivation : '',
+          };
         } catch {
-          aiReport = { summary: response.text || '', highlights: [], areas_to_improve: [], motivation: '' };
+          // If JSON parse fails, use the raw text as summary
+          aiReport = { summary: response.text || '', highlights: [], areas_to_improve: [], routine_adjustment: null, motivation: '' };
         }
       } catch {
         // AI is optional

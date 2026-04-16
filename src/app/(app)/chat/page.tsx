@@ -153,6 +153,13 @@ export default function ChatPage() {
 
   const saveRoutineFromChat = async (routineSuggestion: NonNullable<CoachResponse['routine_suggestion']>) => {
     if (!user || savingRoutine) return;
+
+    const steps = routineSuggestion.steps;
+    if (!Array.isArray(steps) || steps.length === 0) {
+      showToast('error', 'Routine kosong, tidak bisa disimpan');
+      return;
+    }
+
     setSavingRoutine(true);
 
     try {
@@ -167,17 +174,27 @@ export default function ChatPage() {
         .eq('type', routineType)
         .eq('active', true);
 
-      // Insert new routine
+      // Insert new routine with validated steps
+      const validatedSteps = steps
+        .filter(s => s && typeof s === 'object' && s.product_name)
+        .map((s, i) => ({
+          step_number: typeof s.step_number === 'number' ? s.step_number : i + 1,
+          category: typeof s.category === 'string' ? s.category : 'other',
+          product_name: String(s.product_name || ''),
+          product_brand: String(s.product_brand || ''),
+          instruction: String(s.instruction || ''),
+        }));
+
+      if (validatedSteps.length === 0) {
+        showToast('error', 'Routine kosong, tidak bisa disimpan');
+        setSavingRoutine(false);
+        return;
+      }
+
       await supabase.from('routines').insert({
         user_id: user.id,
         type: routineType,
-        steps: routineSuggestion.steps?.map((s, i) => ({
-          step_number: s.step_number || i + 1,
-          category: s.category || 'other',
-          product_name: s.product_name || '',
-          product_brand: s.product_brand || '',
-          instruction: s.instruction || '',
-        })) || [],
+        steps: validatedSteps,
         generated_by: 'ai',
         active: true,
         ai_reasoning: 'Generated from chat conversation',

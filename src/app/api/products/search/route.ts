@@ -6,13 +6,24 @@ export async function GET(req: NextRequest) {
     const supabase = await createClient();
     const { searchParams } = new URL(req.url);
 
-    const query = searchParams.get('q') || '';
+    const query = (searchParams.get('q') || '').slice(0, 100);
     const category = searchParams.get('category') || '';
     const skinType = searchParams.get('skin_type') || '';
     const concern = searchParams.get('concern') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1') || 1);
+    const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '20') || 20), 50);
     const offset = (page - 1) * limit;
+
+    // Validate enum inputs
+    const VALID_SKIN_TYPES = ['oily', 'dry', 'combination', 'sensitive', 'normal'];
+    const VALID_CATEGORIES = ['cleanser', 'toner', 'serum', 'moisturizer', 'sunscreen', 'exfoliator', 'mask', 'eye_cream', 'lip_care', 'spot_treatment', 'body_lotion', 'other'];
+
+    if (skinType && !VALID_SKIN_TYPES.includes(skinType)) {
+      return NextResponse.json({ error: 'Invalid skin_type' }, { status: 400 });
+    }
+    if (category && !VALID_CATEGORIES.includes(category)) {
+      return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
+    }
 
     let dbQuery = supabase
       .from('products')

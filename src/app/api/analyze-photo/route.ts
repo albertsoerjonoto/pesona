@@ -97,12 +97,20 @@ export async function POST(req: NextRequest) {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // Fetch image data
+    // Fetch image data with size limit
     let imageData: string;
     let mimeType: string;
+    const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB max
     try {
       const imgRes = await fetch(photoUrl);
+      const contentLength = imgRes.headers.get('content-length');
+      if (contentLength && parseInt(contentLength) > MAX_IMAGE_SIZE) {
+        return NextResponse.json({ error: 'Image too large for analysis' }, { status: 400 });
+      }
       const imgBuffer = await imgRes.arrayBuffer();
+      if (imgBuffer.byteLength > MAX_IMAGE_SIZE) {
+        return NextResponse.json({ error: 'Image too large for analysis' }, { status: 400 });
+      }
       imageData = Buffer.from(imgBuffer).toString('base64');
       mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
     } catch {
