@@ -1,4 +1,5 @@
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
+const SKIN_PHOTO_MAX_SIZE = 500 * 1024; // 500 KB target for skin photos
 
 /**
  * Compress and crop an image file to a 256×256 square avatar.
@@ -113,6 +114,81 @@ export async function compressChatImage(file: File): Promise<Blob> {
       },
       'image/jpeg',
       0.8,
+    );
+  });
+}
+
+/**
+ * Compress a skin progress photo to under 500KB.
+ * Max 1200px on longest side, preserves aspect ratio.
+ * Outputs JPEG, iteratively lowers quality if needed.
+ */
+export async function compressSkinPhoto(file: File): Promise<Blob> {
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error('Image file is too large (max 20 MB)');
+  }
+
+  // If already under target, return as-is for JPEG
+  if (file.size <= SKIN_PHOTO_MAX_SIZE && file.type === 'image/jpeg') {
+    return file;
+  }
+
+  const MAX = 1200;
+
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const el = new Image();
+    const url = URL.createObjectURL(file);
+    el.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(el);
+    };
+    el.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to load image'));
+    };
+    el.src = url;
+  });
+
+  let w = img.width;
+  let h = img.height;
+  if (w > MAX || h > MAX) {
+    const ratio = Math.min(MAX / w, MAX / h);
+    w = Math.round(w * ratio);
+    h = Math.round(h * ratio);
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(img, 0, 0, w, h);
+
+  // Try progressively lower quality to hit target
+  for (const quality of [0.8, 0.65, 0.5, 0.35]) {
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (b) => {
+          if (b) resolve(b);
+          else reject(new Error('Canvas toBlob failed'));
+        },
+        'image/jpeg',
+        quality,
+      );
+    });
+    if (blob.size <= SKIN_PHOTO_MAX_SIZE || quality === 0.35) {
+      return blob;
+    }
+  }
+
+  // Fallback (shouldn't reach here)
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => {
+        if (b) resolve(b);
+        else reject(new Error('Canvas toBlob failed'));
+      },
+      'image/jpeg',
+      0.3,
     );
   });
 }

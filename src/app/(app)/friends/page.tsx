@@ -6,8 +6,19 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/lib/i18n';
 import { useDesktopLayout } from '@/hooks/useDesktopLayout';
 import { useToast } from '@/components/Toast';
+import PhotoUpload from '@/components/PhotoUpload';
 import { cn } from '@/lib/utils';
 import type { PhotoProgress } from '@/lib/types';
+
+interface AnalysisResult {
+  overall_score?: number;
+  brightness?: number;
+  texture?: number;
+  hydration?: number;
+  concerns_detected?: string[];
+  recommendation?: string;
+  summary?: string;
+}
 
 export default function ProgressPage() {
   const { user } = useAuth();
@@ -15,12 +26,11 @@ export default function ProgressPage() {
   const { isExpanded } = useDesktopLayout();
   const { showToast, ToastContainer } = useToast();
   const fetchedRef = useRef(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [photos, setPhotos] = useState<PhotoProgress[]>([]);
-  const [uploading, setUploading] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoProgress | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
 
   useEffect(() => {
     if (!user || fetchedRef.current) return;
@@ -42,77 +52,73 @@ export default function ProgressPage() {
     load();
   }, [user]);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
+  const handleUploadComplete = async (photoUrl: string, photoId: string) => {
+    showToast('success', 'Foto berhasil diupload! 📸');
 
-    // Compress if needed
-    if (file.size > 2 * 1024 * 1024) {
-      showToast('error', 'Foto terlalu besar. Max 2MB.');
-      return;
+    // Fetch the newly inserted photo
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('photo_progress')
+      .select('*')
+      .eq('id', photoId)
+      .single();
+
+    if (data) {
+      const newPhoto = data as unknown as PhotoProgress;
+      setPhotos(prev => [newPhoto, ...prev]);
+
+      // Trigger AI analysis in background
+      triggerAnalysis(photoId, photoUrl);
     }
+  };
 
-    setUploading(true);
-
+  const triggerAnalysis = async (photoId: string, photoUrl: string) => {
+    setAnalyzing(true);
     try {
-      const supabase = createClient();
-      const timestamp = Date.now();
-      const ext = file.name.split('.').pop() || 'jpg';
-      const path = `${user.id}/${timestamp}.${ext}`;
+      const res = await fetch('/api/analyze-photo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoId, photoUrl }),
+      });
 
-      const { error: uploadError } = await supabase.storage
-        .from('skin-photos')
-        .upload(path, file, { cacheControl: '3600', upsert: false });
-
-      if (uploadError) {
-        // If bucket doesn't exist yet, show helpful message
-        showToast('error', 'Upload gagal. Coba lagi nanti.');
-        setUploading(false);
-        return;
-      }
-
-      const { data: urlData } = supabase.storage
-        .from('skin-photos')
-        .getPublicUrl(path);
-
-      const photoUrl = urlData.publicUrl;
-
-      const { data: photoData } = await supabase
-        .from('photo_progress')
-        .insert({
-          user_id: user.id,
-          photo_url: photoUrl,
-          photo_type: 'skin_face_front',
-          taken_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (photoData) {
-        setPhotos(prev => [photoData as unknown as PhotoProgress, ...prev]);
-        showToast('success', 'Foto berhasil diupload! 📸');
-
-        // Mark daily check-in photo
-        const today = new Date().toISOString().split('T')[0];
-        await supabase.from('daily_checkins').upsert({
-          user_id: user.id,
-          date: today,
-          photo_uploaded: true,
-        }, { onConflict: 'user_id,date' });
+      if (res.ok) {
+        const analysis = await res.json();
+        // Update local state with analysis
+        setPhotos(prev =>
+          prev.map(p =>
+            p.id === photoId ? { ...p, ai_analysis: analysis } : p
+          )
+        );
+        if (selectedPhoto?.id === photoId) {
+          setSelectedPhoto(prev => prev ? { ...prev, ai_analysis: analysis } : null);
+        }
+        showToast('success', 'Analisis kulit selesai! ✨');
       }
     } catch {
-      showToast('error', 'Upload gagal');
+      // Analysis is optional, don't show error
     }
-
-    setUploading(false);
-    // Reset file input
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    setAnalyzing(false);
   };
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
   };
+
+  const parseAnalysis = (analysis: unknown): AnalysisResult | null => {
+    if (!analysis || typeof analysis !== 'object') return null;
+    return analysis as AnalysisResult;
+  };
+
+  const ScoreBar = ({ label, value, color }: { label: string; value: number; color: string }) => (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-text-secondary w-20 shrink-0">{label}</span>
+      <div className="flex-1 h-2 bg-surface-secondary rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${value}%` }} />
+      </div>
+      <span className="text-xs font-medium text-text-primary w-8 text-right">{value}</span>
+    </div>
+  );
 
   return (
     <div className={cn('max-w-lg mx-auto px-4 pb-24', isExpanded && 'lg:max-w-4xl lg:px-8')}>
@@ -122,24 +128,22 @@ export default function ProgressPage() {
       <div className="sticky top-0 z-20 bg-bg pb-4 -mx-4 px-4 pt-6">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-text-primary">{t('progress.title')}</h1>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="px-4 py-2 bg-accent text-accent-fg text-sm font-medium rounded-xl hover:bg-accent-hover transition-all active:scale-[0.98] disabled:opacity-50"
-          >
-            {uploading ? '...' : '📸 ' + t('progress.upload')}
-          </button>
+          {user && (
+            <PhotoUpload
+              userId={user.id}
+              compact
+              onUploadComplete={handleUploadComplete}
+              onError={(msg) => showToast('error', msg)}
+            />
+          )}
         </div>
+        {analyzing && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-accent-text">
+            <div className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+            Menganalisis foto...
+          </div>
+        )}
       </div>
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="user"
-        onChange={handleUpload}
-        className="hidden"
-      />
 
       {/* Stats */}
       {photos.length > 0 && (
@@ -147,6 +151,12 @@ export default function ProgressPage() {
           <div className="flex-1 bg-surface rounded-xl p-3 border border-border text-center">
             <p className="text-lg font-bold text-accent-text">{photos.length}</p>
             <p className="text-[10px] text-text-tertiary">{t('progress.totalPhotos')}</p>
+          </div>
+          <div className="flex-1 bg-surface rounded-xl p-3 border border-border text-center">
+            <p className="text-lg font-bold text-positive-text">
+              {photos.filter(p => p.ai_analysis).length}
+            </p>
+            <p className="text-[10px] text-text-tertiary">Sudah dianalisis</p>
           </div>
           <div className="flex-1 bg-surface rounded-xl p-3 border border-border text-center">
             <p className="text-lg font-bold text-positive-text">
@@ -168,12 +178,14 @@ export default function ProgressPage() {
           </div>
           <p className="text-sm font-medium text-text-primary mb-1">{t('progress.noPhotos')}</p>
           <p className="text-xs text-text-tertiary mb-4">{t('progress.takeFirst')}</p>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="px-6 py-2.5 bg-accent text-accent-fg font-medium rounded-xl hover:bg-accent-hover transition-all active:scale-[0.98] text-sm"
-          >
-            📸 {t('progress.upload')}
-          </button>
+          {user && (
+            <PhotoUpload
+              userId={user.id}
+              onUploadComplete={handleUploadComplete}
+              onError={(msg) => showToast('error', msg)}
+              className="w-full max-w-xs"
+            />
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-2">
@@ -192,6 +204,11 @@ export default function ProgressPage() {
               <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-1.5">
                 <p className="text-[9px] text-white/90 font-medium">{formatDate(photo.taken_at)}</p>
               </div>
+              {photo.ai_analysis && (
+                <div className="absolute top-1.5 right-1.5 w-5 h-5 bg-accent rounded-full flex items-center justify-center">
+                  <span className="text-[8px] text-white">AI</span>
+                </div>
+              )}
             </button>
           ))}
         </div>
@@ -218,17 +235,71 @@ export default function ProgressPage() {
               {selectedPhoto.notes && (
                 <p className="text-xs text-text-secondary mt-1">{selectedPhoto.notes}</p>
               )}
-              {selectedPhoto.ai_analysis && (
-                <div className="mt-3 bg-accent-surface rounded-xl p-3">
-                  <p className="text-xs font-medium text-accent-text mb-1">{t('progress.aiAnalysis')}</p>
-                  <p className="text-xs text-text-secondary">
-                    {typeof selectedPhoto.ai_analysis === 'object' && 'summary' in selectedPhoto.ai_analysis
-                      ? String(selectedPhoto.ai_analysis.summary)
-                      : JSON.stringify(selectedPhoto.ai_analysis)}
-                  </p>
-                  <p className="text-[10px] text-text-tertiary mt-2 italic">{t('progress.disclaimer')}</p>
-                </div>
+
+              {/* AI Analysis Card */}
+              {(() => {
+                const analysis = parseAnalysis(selectedPhoto.ai_analysis);
+                if (!analysis) return null;
+                return (
+                  <div className="mt-3 bg-accent-surface rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-accent-text">Analisis AI</p>
+                      {analysis.overall_score !== undefined && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-lg font-bold text-accent-text">{analysis.overall_score}</span>
+                          <span className="text-xs text-text-tertiary">/100</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Score bars */}
+                    <div className="space-y-2">
+                      {analysis.brightness !== undefined && (
+                        <ScoreBar label="Kecerahan" value={analysis.brightness} color="bg-amber-400" />
+                      )}
+                      {analysis.texture !== undefined && (
+                        <ScoreBar label="Tekstur" value={analysis.texture} color="bg-emerald-400" />
+                      )}
+                      {analysis.hydration !== undefined && (
+                        <ScoreBar label="Hidrasi" value={analysis.hydration} color="bg-blue-400" />
+                      )}
+                    </div>
+
+                    {/* Concerns */}
+                    {analysis.concerns_detected && analysis.concerns_detected.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-text-secondary mb-1">Yang perlu diperhatikan:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {analysis.concerns_detected.map((c, i) => (
+                            <span key={i} className="text-[10px] bg-warning-surface text-warning-text px-2 py-0.5 rounded-full">
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recommendation */}
+                    {analysis.recommendation && (
+                      <p className="text-xs text-text-secondary">{analysis.recommendation}</p>
+                    )}
+
+                    <p className="text-[10px] text-text-tertiary italic">{t('progress.disclaimer')}</p>
+                  </div>
+                );
+              })()}
+
+              {/* Analyze button if no analysis yet */}
+              {!selectedPhoto.ai_analysis && user && (
+                <button
+                  onClick={() => triggerAnalysis(selectedPhoto.id, selectedPhoto.photo_url)}
+                  disabled={analyzing}
+                  className="w-full mt-3 py-2.5 bg-accent text-accent-fg font-medium rounded-xl text-sm hover:bg-accent-hover transition-all disabled:opacity-50"
+                >
+                  {analyzing ? 'Menganalisis...' : '✨ Analisis dengan AI'}
+                </button>
               )}
+
               <button
                 onClick={() => setSelectedPhoto(null)}
                 className="w-full mt-3 py-2.5 bg-surface text-text-primary font-medium rounded-xl border border-border text-sm"
