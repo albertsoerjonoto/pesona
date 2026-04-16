@@ -5,7 +5,7 @@ AI-native personal beauty & body coach for Indonesia. Handles skincare routines,
 ## Tech Stack
 - Next.js 15 + TypeScript
 - Supabase (auth, Postgres, storage)
-- Claude API (Sonnet 4.6 for coach, Haiku 4.5 for background tasks, vision for skin analysis)
+- Google Gemini 2.5 Flash (main AI coach, chat, skin analysis via vision)
 - Tailwind CSS
 - Deployed on Vercel at pesona.io
 
@@ -34,7 +34,8 @@ Phase 1 MVP — skincare-first, targeting Indonesian women. Body/fitness modules
 - `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anonymous key
 - `SUPABASE_SERVICE_ROLE_KEY` — Supabase service role key (server-side only)
-- `ANTHROPIC_API_KEY` — Claude API key
+- `GEMINI_API_KEY` — Google Gemini API key (primary LLM for coach chat)
+- `ANTHROPIC_API_KEY` — Anthropic API key (reserved for future background tasks)
 
 ## Conventions
 - Use `'use client'` only when component needs browser APIs or hooks

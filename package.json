@@ -1,6 +1,7 @@
 {
   "name": "pesona",
   "version": "0.1.0",
+  "description": "AI-powered personal beauty & body coach for Indonesia",
   "private": true,
   "scripts": {
     "dev": "next dev",
