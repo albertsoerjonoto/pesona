@@ -32,7 +32,7 @@ export default function LandingPage() {
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-tight">
             Jadi versi paling menarik dari{' '}
-            <span className="bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[#CE3D66] to-[#8B5CF6] bg-clip-text text-transparent">
               dirimu
             </span>
           </h1>
@@ -146,6 +146,31 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* How it Works */}
+      <section className="py-16 px-6">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-12">
+            Cara Kerja Pesona
+          </h2>
+          <div className="grid sm:grid-cols-4 gap-6">
+            {[
+              { step: '1', emoji: '📝', title: 'Skin Quiz', desc: 'Jawab pertanyaan singkat tentang kulit kamu' },
+              { step: '2', emoji: '🧴', title: 'Dapat Routine', desc: 'AI buatkan skincare routine personal' },
+              { step: '3', emoji: '💬', title: 'Chat Sona', desc: 'Tanya apa saja soal skincare ke AI coach' },
+              { step: '4', emoji: '📸', title: 'Track Progress', desc: 'Foto dan pantau perubahan kulit kamu' },
+            ].map((item) => (
+              <div key={item.step} className="flex flex-col items-center">
+                <div className="w-14 h-14 bg-accent-surface rounded-2xl flex items-center justify-center mb-3">
+                  <span className="text-2xl">{item.emoji}</span>
+                </div>
+                <p className="font-semibold text-sm text-text-primary mb-1">{item.title}</p>
+                <p className="text-xs text-text-secondary">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Pricing hint */}
       <section className="py-20 px-6">
         <div className="max-w-2xl mx-auto text-center">
@@ -193,6 +218,26 @@ export default function LandingPage() {
             >
               Daftar Gratis
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="py-16 px-6 bg-surface">
+        <div className="max-w-2xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8">FAQ</h2>
+          <div className="space-y-4">
+            {[
+              { q: 'Apakah ini layanan medis?', a: 'Tidak. Pesona adalah produk wellness & coaching. Untuk masalah kulit serius, kami akan rekomendasikan kamu ke dokter kulit.' },
+              { q: 'Apakah produk yang direkomendasikan halal?', a: 'Kami menandai status halal dan BPOM setiap produk. Kamu bisa filter hanya produk halal saja.' },
+              { q: 'Berapa harganya?', a: 'Mulai dari Rp 59.000/bulan untuk Plus. Ada juga tier Free dengan fitur terbatas.' },
+              { q: 'Apakah AI coach bisa berbahasa Inggris?', a: 'Ya! Sona bisa bicara dalam Bahasa Indonesia dan English. Dia akan menyesuaikan dengan bahasa kamu.' },
+            ].map((item, i) => (
+              <div key={i} className="bg-bg rounded-xl p-5 border border-border">
+                <p className="font-semibold text-sm text-text-primary mb-2">{item.q}</p>
+                <p className="text-sm text-text-secondary">{item.a}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>

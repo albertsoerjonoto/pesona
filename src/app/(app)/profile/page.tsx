@@ -382,6 +382,29 @@ export default function ProfilePage() {
             )}
           </div>
 
+          {/* Skin Profile Card */}
+          <div className="bg-surface rounded-2xl p-4 mb-4 border border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-accent-surface rounded-xl flex items-center justify-center">
+                  <span className="text-lg">🧴</span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-text-primary">{t('dashboard.skinProfile')}</h3>
+                  <p className="text-xs text-text-tertiary">
+                    {profile.skin_quiz_completed ? t('dashboard.editSkinProfile') : t('dashboard.startQuiz')}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push('/onboarding')}
+                className="px-3 py-1.5 bg-accent text-accent-fg text-xs font-medium rounded-lg hover:bg-accent-hover transition-all"
+              >
+                {profile.skin_quiz_completed ? t('common.edit') : t('common.getStarted')}
+              </button>
+            </div>
+          </div>
+
           {/* Language section */}
           <p className="text-xs font-medium text-text-tertiary uppercase tracking-wider px-1 mt-4 mb-2">{t('profile.language')}</p>
           <div className="bg-surface rounded-2xl overflow-hidden">
@@ -456,146 +479,8 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* Calorie Target */}
-            <div className={dividerClass}>
-              <div className={`${rowClass}`}>
-                <span className="text-sm text-text-primary shrink-0 mr-3">{t('profile.calorieTarget')}</span>
-                <div className="flex gap-1">
-                  {(['deficit', 'maintenance', 'surplus'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => {
-                        setCalorieMode(mode);
-                        setErrors((prev) => {
-                          const next = { ...prev };
-                          delete next.calorieAmountLow;
-                          delete next.calorieAmountHigh;
-                          delete next.maintenanceRange;
-                          return next;
-                        });
-                      }}
-                      className={`px-2.5 py-1 rounded-lg text-xs transition-all capitalize ${
-                        calorieMode === mode
-                          ? 'bg-surface-hover text-text-primary font-semibold'
-                          : 'text-text-muted hover:text-text-secondary'
-                      }`}
-                    >
-                      {mode === 'deficit' ? t('profile.deficit') : mode === 'maintenance' ? t('profile.maintenance') : t('profile.surplus')}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="px-4 pb-3.5 -mt-1">
-                {calorieMode === 'maintenance' ? (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-text-tertiary">±</span>
-                      <input
-                        type="number"
-                        min="50"
-                        max="2000"
-                        step="50"
-                        value={maintenanceRange}
-                        onChange={(e) => {
-                          setMaintenanceRange(e.target.value);
-                          setErrors((prev) => ({ ...prev, maintenanceRange: '' }));
-                        }}
-                        className={`w-20 text-sm text-right bg-surface-secondary rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 ${
-                          errors.maintenanceRange ? 'ring-1 ring-danger' : 'focus:ring-input-ring'
-                        }`}
-                        placeholder="200"
-                      />
-                      <span className="text-xs text-text-tertiary">{t('profile.calOfTdee')}</span>
-                    </div>
-                    {errors.maintenanceRange && (
-                      <p className="text-xs text-danger-text mt-1">{errors.maintenanceRange}</p>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        max="2000"
-                        step="50"
-                        value={calorieAmountLow}
-                        onChange={(e) => {
-                          setCalorieAmountLow(e.target.value);
-                          setErrors((prev) => ({ ...prev, calorieAmountLow: '', calorieAmountHigh: '' }));
-                        }}
-                        className={`w-16 text-sm text-right bg-surface-secondary rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 ${
-                          errors.calorieAmountLow ? 'ring-1 ring-danger' : 'focus:ring-input-ring'
-                        }`}
-                        placeholder="500"
-                      />
-                      <span className="text-xs text-text-tertiary">{t('profile.to')}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="2000"
-                        step="50"
-                        value={calorieAmountHigh}
-                        onChange={(e) => {
-                          setCalorieAmountHigh(e.target.value);
-                          setErrors((prev) => ({ ...prev, calorieAmountLow: '', calorieAmountHigh: '' }));
-                        }}
-                        className={`w-16 text-sm text-right bg-surface-secondary rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 ${
-                          errors.calorieAmountHigh ? 'ring-1 ring-danger' : 'focus:ring-input-ring'
-                        }`}
-                        placeholder="1000"
-                      />
-                      <span className="text-xs text-text-tertiary">
-                        {calorieMode === 'deficit' ? t('profile.belowTdee') : t('profile.aboveTdee')}
-                      </span>
-                    </div>
-                    {(errors.calorieAmountLow || errors.calorieAmountHigh) && (
-                      <p className="text-xs text-danger-text mt-1">{errors.calorieAmountLow || errors.calorieAmountHigh}</p>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Water Goal section */}
-          <p className={cn('text-xs font-medium text-text-tertiary uppercase tracking-wider px-1 mt-8 mb-2', isExpanded && 'lg:mt-4')}>{t('profile.waterGoal')}</p>
-          <div className="bg-surface rounded-2xl overflow-hidden">
-            <div className={rowClass}>
-              <span className="text-sm text-text-primary shrink-0 mr-3">{t('profile.waterGoal')}</span>
-              <div className="flex gap-1">
-                {['1500', '2000', '2500', '3000'].map((val) => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => setWaterGoalMl(val)}
-                    className={`px-2.5 py-1 rounded-lg text-xs transition-all ${
-                      waterGoalMl === val
-                        ? 'bg-surface-hover text-text-primary font-semibold'
-                        : 'text-text-muted hover:text-text-secondary'
-                    }`}
-                  >
-                    {val}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="px-4 pb-3.5 -mt-1">
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="500"
-                  max="5000"
-                  step="100"
-                  value={waterGoalMl}
-                  onChange={(e) => setWaterGoalMl(e.target.value)}
-                  className="w-20 text-sm text-right bg-surface-secondary rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-input-ring"
-                  placeholder="2000"
-                />
-                <span className="text-xs text-text-tertiary">{t('profile.waterGoalUnit')}</span>
-              </div>
-            </div>
+            {/* Calorie Target — hidden for Pesona skincare-first mode */}
+            {/* Water Goal — hidden for Pesona skincare-first mode */}
           </div>
 
           </div>{/* end Account column */}

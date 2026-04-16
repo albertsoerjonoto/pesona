@@ -8,9 +8,46 @@ import { useToast } from '@/components/Toast';
 import { cn } from '@/lib/utils';
 import { validateDOB, validateBodyStat } from '@/lib/validation';
 import { useLocale } from '@/lib/i18n';
-import type { Gender } from '@/lib/types';
+import type { Gender, SkinType, SkinConcern, SkinGoal, BudgetRange } from '@/lib/types';
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 9;
+
+// ── Skin quiz config ──
+
+const SKIN_TYPES: { value: SkinType; emoji: string; labelKey: string; descKey: string }[] = [
+  { value: 'oily', emoji: '🫧', labelKey: 'skin.type.oily', descKey: 'skin.type.oily.desc' },
+  { value: 'dry', emoji: '🏜️', labelKey: 'skin.type.dry', descKey: 'skin.type.dry.desc' },
+  { value: 'combination', emoji: '⚖️', labelKey: 'skin.type.combination', descKey: 'skin.type.combination.desc' },
+  { value: 'normal', emoji: '☁️', labelKey: 'skin.type.normal', descKey: 'skin.type.normal.desc' },
+  { value: 'sensitive', emoji: '🌸', labelKey: 'skin.type.sensitive', descKey: 'skin.type.sensitive.desc' },
+];
+
+const SKIN_CONCERNS: { value: SkinConcern; emoji: string; labelKey: string }[] = [
+  { value: 'acne', emoji: '🔴', labelKey: 'skin.concern.acne' },
+  { value: 'dark_spots', emoji: '🟤', labelKey: 'skin.concern.dark_spots' },
+  { value: 'dullness', emoji: '😶', labelKey: 'skin.concern.dullness' },
+  { value: 'large_pores', emoji: '🔲', labelKey: 'skin.concern.large_pores' },
+  { value: 'blackheads', emoji: '⚫', labelKey: 'skin.concern.blackheads' },
+  { value: 'redness', emoji: '🔴', labelKey: 'skin.concern.redness' },
+  { value: 'rough_texture', emoji: '📐', labelKey: 'skin.concern.rough_texture' },
+  { value: 'aging', emoji: '👵', labelKey: 'skin.concern.aging' },
+];
+
+const SKIN_GOALS: { value: SkinGoal; emoji: string; labelKey: string }[] = [
+  { value: 'glowing', emoji: '✨', labelKey: 'skin.goal.glowing' },
+  { value: 'clear', emoji: '🧊', labelKey: 'skin.goal.clear' },
+  { value: 'even_tone', emoji: '🎯', labelKey: 'skin.goal.even_tone' },
+  { value: 'hydrated', emoji: '💧', labelKey: 'skin.goal.hydrated' },
+  { value: 'anti_aging', emoji: '🛡️', labelKey: 'skin.goal.anti_aging' },
+  { value: 'small_pores', emoji: '🔘', labelKey: 'skin.goal.small_pores' },
+];
+
+const BUDGETS: { value: BudgetRange; emoji: string; labelKey: string }[] = [
+  { value: 'under_100k', emoji: '💰', labelKey: 'skin.budget.under_100k' },
+  { value: '100k_300k', emoji: '💰💰', labelKey: 'skin.budget.100k_300k' },
+  { value: '300k_500k', emoji: '💰💰💰', labelKey: 'skin.budget.300k_500k' },
+  { value: 'over_500k', emoji: '💰💰💰💰', labelKey: 'skin.budget.over_500k' },
+];
 
 export default function OnboardingPage() {
   const { user, loading: authLoading } = useAuth();
@@ -24,21 +61,33 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false);
   const [ready, setReady] = useState(false);
 
-  // Form state
+  // Profile form state (steps 0-3)
   const [displayName, setDisplayName] = useState('');
   const [gender, setGender] = useState<Gender | ''>('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [heightCm, setHeightCm] = useState('');
   const [weightKg, setWeightKg] = useState('');
 
+  // Skin quiz state (steps 4-8)
+  const [skinType, setSkinType] = useState<SkinType | ''>('');
+  const [concerns, setConcerns] = useState<SkinConcern[]>([]);
+  const [skinGoals, setSkinGoals] = useState<SkinGoal[]>([]);
+  const [budgetRange, setBudgetRange] = useState<BudgetRange | ''>('');
+  const [hijabWearer, setHijabWearer] = useState(false);
+
   const steps = [
     { emoji: '👋', title: t('onboarding.nameTitle'), subtitle: t('onboarding.nameSubtitle') },
     { emoji: '⚡', title: t('onboarding.genderTitle'), subtitle: t('onboarding.genderSubtitle') },
     { emoji: '🎂', title: t('onboarding.dobTitle'), subtitle: t('onboarding.dobSubtitle') },
     { emoji: '📏', title: t('onboarding.bodyTitle'), subtitle: t('onboarding.bodySubtitle') },
+    { emoji: '🧴', title: t('skin.quiz.typeTitle'), subtitle: t('skin.quiz.typeSubtitle') },
+    { emoji: '🔍', title: t('skin.quiz.concernsTitle'), subtitle: t('skin.quiz.concernsSubtitle') },
+    { emoji: '🌟', title: t('skin.quiz.goalsTitle'), subtitle: t('skin.quiz.goalsSubtitle') },
+    { emoji: '💰', title: t('skin.quiz.budgetTitle'), subtitle: t('skin.quiz.budgetSubtitle') },
+    { emoji: '🧕', title: t('skin.quiz.extraTitle'), subtitle: t('skin.quiz.extraSubtitle') },
   ];
 
-  // Fetch profile on mount — pre-populate and redirect if already onboarded
+  // Fetch profile on mount
   useEffect(() => {
     if (authLoading || !user || fetchedRef.current) return;
     fetchedRef.current = true;
@@ -52,7 +101,7 @@ export default function OnboardingPage() {
         .single();
 
       if (data?.onboarding_completed) {
-        router.replace('/chat?tour=start');
+        router.replace('/dashboard');
         return;
       }
 
@@ -63,11 +112,25 @@ export default function OnboardingPage() {
         setHeightCm(data.height_cm ? String(data.height_cm) : '');
         setWeightKg(data.weight_kg ? String(data.weight_kg) : '');
 
-        // Resume from saved step
         const savedStep = data.onboarding_step ?? 0;
         if (savedStep > 0 && savedStep < TOTAL_STEPS) {
           setStep(savedStep);
         }
+      }
+
+      // Load existing skin profile if any
+      const { data: skinData } = await supabase
+        .from('skin_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (skinData) {
+        if (skinData.skin_type) setSkinType(skinData.skin_type);
+        if (skinData.concerns?.length) setConcerns(skinData.concerns);
+        if (skinData.skin_goals?.length) setSkinGoals(skinData.skin_goals);
+        if (skinData.budget_range) setBudgetRange(skinData.budget_range);
+        if (skinData.hijab_wearer) setHijabWearer(skinData.hijab_wearer);
       }
 
       setReady(true);
@@ -92,10 +155,28 @@ export default function OnboardingPage() {
     return true;
   };
 
+  const saveSkinProfile = async (fields: Record<string, unknown>) => {
+    if (!user) return false;
+    setSaving(true);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('skin_profiles')
+      .upsert({ user_id: user.id, ...fields }, { onConflict: 'user_id' });
+    setSaving(false);
+    if (error) {
+      showToast('error', t('onboarding.failedSave'));
+      return false;
+    }
+    return true;
+  };
+
+  const advanceStep = (nextStep: number) => {
+    setDirection('forward');
+    setStep(nextStep);
+  };
+
   const handleContinue = async () => {
     if (saving) return;
-
-    // Validate and save based on current step
     const nextStep = step + 1;
 
     if (step === 0) {
@@ -116,34 +197,84 @@ export default function OnboardingPage() {
       const ok = await saveStep(fields);
       if (!ok) return;
     } else if (step === 3) {
-      const fields: Record<string, unknown> = { onboarding_completed: true, onboarding_step: nextStep };
-
+      const fields: Record<string, unknown> = { onboarding_step: nextStep };
       if (heightCm) {
         const h = validateBodyStat(heightCm, 50, 300);
-        if (h === null) {
-          showToast('error', t('onboarding.heightRange'));
-          return;
-        }
+        if (h === null) { showToast('error', t('onboarding.heightRange')); return; }
         fields.height_cm = h;
       }
       if (weightKg) {
         const w = validateBodyStat(weightKg, 10, 500);
-        if (w === null) {
-          showToast('error', t('onboarding.weightRange'));
-          return;
-        }
+        if (w === null) { showToast('error', t('onboarding.weightRange')); return; }
         fields.weight_kg = w;
       }
-
       const ok = await saveStep(fields);
       if (!ok) return;
-      router.replace('/chat?tour=start');
+    } else if (step === 4) {
+      // Skin type — auto-advance handled separately
+      if (!skinType) return;
+      const ok1 = await saveSkinProfile({ skin_type: skinType });
+      if (!ok1) return;
+      const ok2 = await saveStep({ onboarding_step: nextStep });
+      if (!ok2) return;
+    } else if (step === 5) {
+      if (concerns.length === 0) {
+        showToast('error', t('skin.quiz.selectAtLeastOne'));
+        return;
+      }
+      const ok1 = await saveSkinProfile({ concerns });
+      if (!ok1) return;
+      const ok2 = await saveStep({ onboarding_step: nextStep });
+      if (!ok2) return;
+    } else if (step === 6) {
+      if (skinGoals.length === 0) {
+        showToast('error', t('skin.quiz.selectAtLeastOne'));
+        return;
+      }
+      const ok1 = await saveSkinProfile({ skin_goals: skinGoals });
+      if (!ok1) return;
+      const ok2 = await saveStep({ onboarding_step: nextStep });
+      if (!ok2) return;
+    } else if (step === 7) {
+      // Budget — auto-advance handled separately
+      if (!budgetRange) return;
+      const ok1 = await saveSkinProfile({ budget_range: budgetRange });
+      if (!ok1) return;
+      const ok2 = await saveStep({ onboarding_step: nextStep });
+      if (!ok2) return;
+    } else if (step === 8) {
+      // Final step — save hijab + mark complete
+      const ok1 = await saveSkinProfile({ hijab_wearer: hijabWearer, quiz_completed: true });
+      if (!ok1) return;
+      const ok2 = await saveStep({ onboarding_completed: true, skin_quiz_completed: true, onboarding_step: nextStep });
+      if (!ok2) return;
+      router.replace('/dashboard');
       return;
     }
 
-    // Advance step
-    setDirection('forward');
-    setStep(nextStep);
+    advanceStep(nextStep);
+  };
+
+  const handleSkinTypeSelect = async (type: SkinType) => {
+    if (saving) return;
+    setSkinType(type);
+    const nextStep = step + 1;
+    const ok1 = await saveSkinProfile({ skin_type: type });
+    if (!ok1) return;
+    const ok2 = await saveStep({ onboarding_step: nextStep });
+    if (!ok2) return;
+    advanceStep(nextStep);
+  };
+
+  const handleBudgetSelect = async (budget: BudgetRange) => {
+    if (saving) return;
+    setBudgetRange(budget);
+    const nextStep = step + 1;
+    const ok1 = await saveSkinProfile({ budget_range: budget });
+    if (!ok1) return;
+    const ok2 = await saveStep({ onboarding_step: nextStep });
+    if (!ok2) return;
+    advanceStep(nextStep);
   };
 
   const handleGenderContinue = async (g: Gender) => {
@@ -151,52 +282,59 @@ export default function OnboardingPage() {
     const nextStep = step + 1;
     const ok = await saveStep({ gender: g, onboarding_step: nextStep });
     if (!ok) return;
-    setDirection('forward');
-    setStep(nextStep);
+    advanceStep(nextStep);
+  };
+
+  const toggleConcern = (c: SkinConcern) => {
+    setConcerns(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
+  };
+
+  const toggleGoal = (g: SkinGoal) => {
+    setSkinGoals(prev => prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]);
   };
 
   const handleSkip = async () => {
     const nextStep = step + 1;
-    if (step === 3) {
-      // Final step — mark onboarding as complete even when skipping
-      const ok = await saveStep({ onboarding_completed: true, onboarding_step: nextStep });
+    if (step === 8) {
+      const ok1 = await saveSkinProfile({ quiz_completed: true });
+      if (!ok1) return;
+      const ok = await saveStep({ onboarding_completed: true, skin_quiz_completed: true, onboarding_step: nextStep });
       if (!ok) return;
-      router.replace('/chat?tour=start');
+      router.replace('/dashboard');
       return;
     }
-    // Save step progress even when skipping
     const ok = await saveStep({ onboarding_step: nextStep });
     if (!ok) return;
-    setDirection('forward');
-    setStep(nextStep);
+    advanceStep(nextStep);
   };
 
   const handleBack = () => {
     setDirection('back');
-    setStep((s) => s - 1);
+    setStep(s => s - 1);
   };
 
   const inputClass =
     'w-full px-4 py-3.5 rounded-xl border border-border-strong bg-surface focus:outline-none focus:ring-1 focus:ring-input-ring focus:border-transparent transition-all duration-200 text-lg';
 
-  // Loading state
   if (authLoading || !ready) {
     return <div className="min-h-screen bg-bg" />;
   }
+
+  // Determine if Continue button should be hidden (auto-advance steps)
+  const isAutoAdvanceStep = step === 1 || step === 4 || step === 7;
 
   return (
     <div className="max-w-lg mx-auto px-6 pt-8 pb-12 min-h-screen flex flex-col">
       {ToastContainer}
 
       {/* Progress Bar */}
-      <div className="flex gap-1.5 mb-8">
+      <div className="flex gap-1 mb-8">
         {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
           <div
             key={i}
             className={cn(
               'h-1.5 flex-1 rounded-full transition-all duration-300',
-              i < step ? 'bg-accent' :
-              i === step ? 'bg-accent' : 'bg-surface-secondary'
+              i <= step ? 'bg-accent' : 'bg-surface-secondary'
             )}
           />
         ))}
@@ -228,47 +366,40 @@ export default function OnboardingPage() {
         >
           {/* Emoji */}
           <div className="text-center mb-6">
-            <span className="text-6xl">{steps[step].emoji}</span>
+            <span className="text-6xl">{steps[step]?.emoji}</span>
           </div>
 
           {/* Title + Subtitle */}
           <h1 className="text-2xl font-bold text-text-primary text-center mb-2">
-            {steps[step].title}
+            {steps[step]?.title}
           </h1>
           <p className="text-sm text-text-tertiary text-center mb-8">
-            {steps[step].subtitle}
+            {steps[step]?.subtitle}
           </p>
 
           {/* Input Area */}
           <div className="flex-1">
+            {/* Step 0: Name */}
             {step === 0 && (
               <input
                 type="text"
                 value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && displayName.trim()) {
-                    e.preventDefault();
-                    handleContinue();
-                  }
-                }}
+                onChange={e => setDisplayName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && displayName.trim()) { e.preventDefault(); handleContinue(); } }}
                 className={inputClass}
                 placeholder={t('onboarding.yourName')}
                 autoFocus
               />
             )}
 
+            {/* Step 1: Gender */}
             {step === 1 && (
               <div className="flex gap-3">
-                {(['male', 'female'] as const).map((g) => (
+                {(['male', 'female'] as const).map(g => (
                   <button
                     key={g}
                     type="button"
-                    onClick={() => {
-                      setGender(g);
-                      // Auto-advance after a brief visual feedback
-                      setTimeout(() => handleGenderContinue(g), 250);
-                    }}
+                    onClick={() => { setGender(g); setTimeout(() => handleGenderContinue(g), 250); }}
                     className={cn(
                       'flex-1 py-4 rounded-2xl text-base font-semibold transition-all capitalize',
                       gender === g
@@ -282,44 +413,153 @@ export default function OnboardingPage() {
               </div>
             )}
 
+            {/* Step 2: DOB */}
             {step === 2 && (
               <DOBPicker value={dateOfBirth} onChange={setDateOfBirth} t={t} />
             )}
 
+            {/* Step 3: Height/Weight */}
             {step === 3 && (
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-text-muted mb-1.5">{t('onboarding.height')}</label>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="50"
-                      max="300"
-                      step="0.1"
-                      value={heightCm}
-                      onChange={(e) => setHeightCm(e.target.value)}
-                      className={cn(inputClass, 'flex-1')}
-                      placeholder="170"
-                      autoFocus
-                    />
+                    <input type="number" min="50" max="300" step="0.1" value={heightCm} onChange={e => setHeightCm(e.target.value)} className={cn(inputClass, 'flex-1')} placeholder="170" autoFocus />
                     <span className="text-text-tertiary text-sm font-medium w-6 shrink-0">cm</span>
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-muted mb-1.5">{t('onboarding.weight')}</label>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="10"
-                      max="500"
-                      step="0.1"
-                      value={weightKg}
-                      onChange={(e) => setWeightKg(e.target.value)}
-                      className={cn(inputClass, 'flex-1')}
-                      placeholder="70"
-                    />
+                    <input type="number" min="10" max="500" step="0.1" value={weightKg} onChange={e => setWeightKg(e.target.value)} className={cn(inputClass, 'flex-1')} placeholder="70" />
                     <span className="text-text-tertiary text-sm font-medium w-6 shrink-0">kg</span>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Skin Type (auto-advance) */}
+            {step === 4 && (
+              <div className="space-y-3">
+                {SKIN_TYPES.map(({ value, emoji, labelKey, descKey }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => handleSkinTypeSelect(value)}
+                    className={cn(
+                      'w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all',
+                      skinType === value
+                        ? 'bg-accent text-accent-fg shadow-md'
+                        : 'bg-surface border border-border-strong hover:border-accent-border'
+                    )}
+                  >
+                    <span className="text-2xl">{emoji}</span>
+                    <div>
+                      <p className={cn('font-semibold', skinType === value ? '' : 'text-text-primary')}>{t(labelKey)}</p>
+                      <p className={cn('text-xs mt-0.5', skinType === value ? 'opacity-80' : 'text-text-tertiary')}>{t(descKey)}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Step 5: Concerns (multi-select) */}
+            {step === 5 && (
+              <div className="flex flex-wrap gap-2">
+                {SKIN_CONCERNS.map(({ value, emoji, labelKey }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => toggleConcern(value)}
+                    className={cn(
+                      'flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all',
+                      concerns.includes(value)
+                        ? 'bg-accent text-accent-fg shadow-sm'
+                        : 'bg-surface border border-border-strong text-text-label hover:border-accent-border'
+                    )}
+                  >
+                    <span>{emoji}</span>
+                    <span>{t(labelKey)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Step 6: Goals (multi-select) */}
+            {step === 6 && (
+              <div className="flex flex-wrap gap-2">
+                {SKIN_GOALS.map(({ value, emoji, labelKey }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => toggleGoal(value)}
+                    className={cn(
+                      'flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all',
+                      skinGoals.includes(value)
+                        ? 'bg-accent text-accent-fg shadow-sm'
+                        : 'bg-surface border border-border-strong text-text-label hover:border-accent-border'
+                    )}
+                  >
+                    <span>{emoji}</span>
+                    <span>{t(labelKey)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Step 7: Budget (auto-advance) */}
+            {step === 7 && (
+              <div className="space-y-3">
+                {BUDGETS.map(({ value, emoji, labelKey }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => handleBudgetSelect(value)}
+                    className={cn(
+                      'w-full flex items-center gap-4 p-4 rounded-2xl text-left transition-all',
+                      budgetRange === value
+                        ? 'bg-accent text-accent-fg shadow-md'
+                        : 'bg-surface border border-border-strong hover:border-accent-border'
+                    )}
+                  >
+                    <span className="text-xl">{emoji}</span>
+                    <span className={cn('font-semibold', budgetRange === value ? '' : 'text-text-primary')}>{t(labelKey)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Step 8: Hijab + finish */}
+            {step === 8 && (
+              <div className="space-y-6">
+                <button
+                  type="button"
+                  onClick={() => setHijabWearer(!hijabWearer)}
+                  className={cn(
+                    'w-full flex items-center justify-between p-4 rounded-2xl transition-all',
+                    hijabWearer
+                      ? 'bg-accent text-accent-fg shadow-md'
+                      : 'bg-surface border border-border-strong'
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🧕</span>
+                    <span className={cn('font-semibold', hijabWearer ? '' : 'text-text-primary')}>{t('skin.quiz.hijabLabel')}</span>
+                  </div>
+                  <div className={cn(
+                    'w-12 h-7 rounded-full transition-all flex items-center',
+                    hijabWearer ? 'bg-white/30 justify-end' : 'bg-surface-secondary justify-start'
+                  )}>
+                    <div className={cn(
+                      'w-5 h-5 rounded-full mx-1 transition-all',
+                      hijabWearer ? 'bg-white' : 'bg-text-tertiary'
+                    )} />
+                  </div>
+                </button>
+
+                <div className="bg-accent-surface border border-accent-border rounded-2xl p-4">
+                  <p className="text-sm text-accent-text font-medium mb-1">{t('skin.quiz.readyTitle')}</p>
+                  <p className="text-xs text-text-secondary">{t('skin.quiz.readyDesc')}</p>
                 </div>
               </div>
             )}
@@ -327,22 +567,24 @@ export default function OnboardingPage() {
         </div>
 
         {/* Buttons */}
-        <div className="mt-8 space-y-3">
-          <button
-            onClick={handleContinue}
-            disabled={saving}
-            className="w-full py-3.5 bg-accent hover:bg-accent-hover text-accent-fg font-semibold rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 text-base"
-          >
-            {saving ? t('common.saving') : step === 3 ? t('common.getStarted') : t('common.continue')}
-          </button>
-          <button
-            onClick={handleSkip}
-            disabled={saving}
-            className="w-full py-2 text-text-tertiary text-sm font-medium hover:text-text-muted transition-colors"
-          >
-            {step === 3 ? t('common.skipForNow') : t('common.skip')}
-          </button>
-        </div>
+        {!isAutoAdvanceStep && (
+          <div className="mt-8 space-y-3">
+            <button
+              onClick={handleContinue}
+              disabled={saving}
+              className="w-full py-3.5 bg-accent hover:bg-accent-hover text-accent-fg font-semibold rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 text-base"
+            >
+              {saving ? t('common.saving') : step === 8 ? t('skin.quiz.startJourney') : t('common.continue')}
+            </button>
+            <button
+              onClick={handleSkip}
+              disabled={saving}
+              className="w-full py-2 text-text-tertiary text-sm font-medium hover:text-text-muted transition-colors"
+            >
+              {step === 8 ? t('common.skipForNow') : t('common.skip')}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -351,7 +593,6 @@ export default function OnboardingPage() {
 // ── Custom DOB Picker: Year → Month → Day ──────────────────────────
 
 function DOBPicker({ value, onChange, t }: { value: string; onChange: (v: string) => void; t: (key: string) => string }) {
-  // Parse existing value
   const parsed = value ? { year: +value.slice(0, 4), month: +value.slice(5, 7), day: +value.slice(8, 10) } : null;
 
   const [pickerStep, setPickerStep] = useState<'year' | 'month' | 'day'>(parsed ? 'day' : 'year');
@@ -363,31 +604,21 @@ function DOBPicker({ value, onChange, t }: { value: string; onChange: (v: string
   const currentMonth = new Date().getMonth() + 1;
   const currentDay = new Date().getDate();
 
-  // Generate years from current year down to 120 years ago
   const years: number[] = [];
   for (let y = currentYear; y >= currentYear - 120; y--) years.push(y);
 
-  // Scroll to a sensible default when year picker opens
   useEffect(() => {
     if (pickerStep !== 'year' || !yearListRef.current) return;
     const container = yearListRef.current;
-    // Scroll to selected year, or default to ~25 years ago
     const targetYear = selectedYear ?? (currentYear - 25);
     const targetIndex = currentYear - targetYear;
-    const itemHeight = 48; // h-12 = 48px
+    const itemHeight = 48;
     const containerHeight = container.clientHeight;
     container.scrollTop = Math.max(0, targetIndex * itemHeight - containerHeight / 2 + itemHeight / 2);
   }, [pickerStep, selectedYear, currentYear]);
 
-  // Get available month indices for selected year
-  const getMonthCount = () => {
-    if (selectedYear === currentYear) {
-      return currentMonth;
-    }
-    return 12;
-  };
+  const getMonthCount = () => selectedYear === currentYear ? currentMonth : 12;
 
-  // Get days in selected month/year
   const getDays = () => {
     if (!selectedYear || !selectedMonth) return [];
     const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
@@ -402,7 +633,6 @@ function DOBPicker({ value, onChange, t }: { value: string; onChange: (v: string
 
   const handleYearSelect = (year: number) => {
     setSelectedYear(year);
-    // If previously selected month is invalid for this year, reset
     if (year === currentYear && selectedMonth && selectedMonth > currentMonth) {
       setSelectedMonth(null);
     }
@@ -410,18 +640,15 @@ function DOBPicker({ value, onChange, t }: { value: string; onChange: (v: string
   };
 
   const handleMonthSelect = (monthIndex: number) => {
-    const month = monthIndex + 1;
-    setSelectedMonth(month);
+    setSelectedMonth(monthIndex + 1);
     setPickerStep('day');
   };
 
   const handleDaySelect = (day: number) => {
     if (!selectedYear || !selectedMonth) return;
-    const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    onChange(dateStr);
+    onChange(`${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
   };
 
-  // If a date is already selected, show it with an edit option
   if (value && pickerStep === 'day' && parsed) {
     const displayDate = new Date(value + 'T12:00:00Z');
     const monthName = t('month.' + (displayDate.getUTCMonth() + 1));
@@ -430,14 +657,8 @@ function DOBPicker({ value, onChange, t }: { value: string; onChange: (v: string
     return (
       <div className="space-y-3">
         <div className="bg-surface rounded-2xl border border-accent-border p-4 flex items-center justify-between">
-          <div>
-            <p className="text-lg font-semibold text-text-primary">{formatted}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => { setPickerStep('year'); onChange(''); }}
-            className="text-sm text-accent-text font-medium hover:underline"
-          >
+          <p className="text-lg font-semibold text-text-primary">{formatted}</p>
+          <button type="button" onClick={() => { setPickerStep('year'); onChange(''); }} className="text-sm text-accent-text font-medium hover:underline">
             {t('common.change')}
           </button>
         </div>
@@ -447,92 +668,48 @@ function DOBPicker({ value, onChange, t }: { value: string; onChange: (v: string
 
   const pillClass = (isSelected: boolean) => cn(
     'px-4 py-2.5 rounded-xl text-sm font-medium transition-all',
-    isSelected
-      ? 'bg-accent text-accent-fg shadow-sm'
-      : 'bg-surface text-text-label border border-border-strong hover:border-accent-border'
+    isSelected ? 'bg-accent text-accent-fg shadow-sm' : 'bg-surface text-text-label border border-border-strong hover:border-accent-border'
   );
 
   const monthCount = getMonthCount();
 
   return (
     <div className="space-y-4">
-      {/* Breadcrumb navigation */}
       <div className="flex items-center gap-1.5 text-sm">
-        <button
-          type="button"
-          onClick={() => setPickerStep('year')}
-          className={cn(
-            'font-medium transition-colors',
-            pickerStep === 'year' ? 'text-accent-text' : selectedYear ? 'text-text-label hover:text-accent-text' : 'text-text-tertiary'
-          )}
-        >
+        <button type="button" onClick={() => setPickerStep('year')} className={cn('font-medium transition-colors', pickerStep === 'year' ? 'text-accent-text' : selectedYear ? 'text-text-label hover:text-accent-text' : 'text-text-tertiary')}>
           {selectedYear ?? t('dob.year')}
         </button>
         <span className="text-text-tertiary">›</span>
-        <button
-          type="button"
-          onClick={() => selectedYear && setPickerStep('month')}
-          disabled={!selectedYear}
-          className={cn(
-            'font-medium transition-colors',
-            pickerStep === 'month' ? 'text-accent-text' : selectedMonth ? 'text-text-label hover:text-accent-text' : 'text-text-tertiary'
-          )}
-        >
+        <button type="button" onClick={() => selectedYear && setPickerStep('month')} disabled={!selectedYear} className={cn('font-medium transition-colors', pickerStep === 'month' ? 'text-accent-text' : selectedMonth ? 'text-text-label hover:text-accent-text' : 'text-text-tertiary')}>
           {selectedMonth ? t('month.' + selectedMonth) : t('dob.month')}
         </button>
         <span className="text-text-tertiary">›</span>
         <span className="text-text-tertiary font-medium">{t('dob.day')}</span>
       </div>
 
-      {/* Scrollable content */}
-      <div className={cn(
-        "bg-surface rounded-2xl border border-border-strong overflow-y-auto scrollbar-hide",
-        pickerStep === 'year' ? 'max-h-72' : 'p-4 max-h-60'
-      )}>
+      <div className={cn('bg-surface rounded-2xl border border-border-strong overflow-y-auto scrollbar-hide', pickerStep === 'year' ? 'max-h-72' : 'p-4 max-h-60')}>
         {pickerStep === 'year' && (
           <div ref={yearListRef} className="max-h-72 overflow-y-auto scrollbar-hide">
-            {years.map((y) => (
-              <button
-                key={y}
-                type="button"
-                onClick={() => handleYearSelect(y)}
-                className={cn(
-                  'w-full h-12 text-center text-base font-medium transition-all',
-                  y === selectedYear
-                    ? 'bg-accent text-accent-fg'
-                    : 'text-text-label hover:bg-surface-hover'
-                )}
-              >
+            {years.map(y => (
+              <button key={y} type="button" onClick={() => handleYearSelect(y)} className={cn('w-full h-12 text-center text-base font-medium transition-all', y === selectedYear ? 'bg-accent text-accent-fg' : 'text-text-label hover:bg-surface-hover')}>
                 {y}
               </button>
             ))}
           </div>
         )}
-
         {pickerStep === 'month' && (
           <div className="grid grid-cols-3 gap-2">
             {Array.from({ length: monthCount }).map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => handleMonthSelect(i)}
-                className={pillClass(i + 1 === selectedMonth)}
-              >
+              <button key={i} type="button" onClick={() => handleMonthSelect(i)} className={pillClass(i + 1 === selectedMonth)}>
                 {t('month.' + (i + 1)).slice(0, 3)}
               </button>
             ))}
           </div>
         )}
-
         {pickerStep === 'day' && (
           <div className="grid grid-cols-7 gap-2">
-            {getDays().map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => handleDaySelect(d)}
-                className={pillClass(parsed?.day === d && parsed?.month === selectedMonth && parsed?.year === selectedYear)}
-              >
+            {getDays().map(d => (
+              <button key={d} type="button" onClick={() => handleDaySelect(d)} className={pillClass(parsed?.day === d && parsed?.month === selectedMonth && parsed?.year === selectedYear)}>
                 {d}
               </button>
             ))}

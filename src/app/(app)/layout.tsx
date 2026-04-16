@@ -29,17 +29,11 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
   const [pendingCount, setPendingCount] = useState(0);
   const { user } = useAuth();
 
-  // Fetch pending friend request count
+  // Friendships disabled for Pesona (no social features in Phase 1)
   const fetchPendingCount = useCallback(async () => {
-    if (!user) return;
-    const supabase = createClient();
-    const { count } = await supabase
-      .from('friendships')
-      .select('*', { count: 'exact', head: true })
-      .eq('addressee_id', user.id)
-      .eq('status', 'pending');
-    setPendingCount(count ?? 0);
-  }, [user]);
+    // Disabled: friendships table does not exist in Pesona schema
+    setPendingCount(0);
+  }, []);
 
   useEffect(() => {
     if (!user) return;

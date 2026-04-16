@@ -1,106 +1,137 @@
 @import "tailwindcss";
 
-/* ── Light theme (default) ── */
+/* ── Light theme (default) — Bossy Pink ── */
 :root {
-  --c-bg: #ffffff;
-  --c-surface: #f9f9f9;
-  --c-surface-secondary: #f3f4f6;
-  --c-surface-hover: #f0f0f2;
-  --c-border: rgba(0, 0, 0, 0.04);
-  --c-border-strong: rgba(0, 0, 0, 0.10);
-  --c-text-primary: #18181b;
-  --c-text-secondary: #6b7280;
-  --c-text-tertiary: #9ca3af;
-  --c-text-label: #374151;
-  --c-text-muted: #4b5563;
-  --c-accent: #18181b;
-  --c-accent-hover: #27272a;
-  --c-accent-fg: #ffffff;
-  --c-accent-text: #18181b;
-  --c-accent-surface: #f4f4f5;
-  --c-accent-border: #d4d4d8;
-  --c-positive: #10b981;
+  /* Backgrounds */
+  --c-bg: #FFFBFC;
+  --c-surface: #FFF5F7;
+  --c-surface-secondary: #FFECF0;
+  --c-surface-hover: #FFE3E9;
+
+  /* Borders */
+  --c-border: rgba(206, 61, 102, 0.08);
+  --c-border-strong: rgba(206, 61, 102, 0.15);
+
+  /* Text */
+  --c-text-primary: #1A1A2E;
+  --c-text-secondary: #5C5470;
+  --c-text-tertiary: #8E8AA0;
+  --c-text-label: #352F44;
+  --c-text-muted: #6B6580;
+
+  /* Primary — Bossy Pink */
+  --c-accent: #CE3D66;
+  --c-accent-hover: #B83359;
+  --c-accent-fg: #FFFFFF;
+  --c-accent-text: #CE3D66;
+  --c-accent-surface: #FFF0F3;
+  --c-accent-border: #F5B3C4;
+
+  /* Positive / Success — Emerald */
+  --c-positive: #10B981;
   --c-positive-text: #059669;
-  --c-positive-surface: #ecfdf5;
-  --c-positive-border: #a7f3d0;
-  --c-positive-bar: #34d399;
-  --c-danger: #ef4444;
-  --c-danger-hover: #dc2626;
-  --c-danger-text: #ef4444;
-  --c-danger-text-muted: #f87171;
-  --c-danger-border: #fecaca;
-  --c-danger-surface: #fef2f2;
-  --c-danger-input-border: #fca5a5;
-  --c-warning: #f97316;
-  --c-warning-bar: #fb923c;
-  --c-info: #2563eb;
-  --c-info-bar: #60a5fa;
-  --c-macro-carbs: #fbbf24;
-  --c-macro-fat: #fb7185;
-  --c-exercise-surface: #eff6ff;
-  --c-overlay: rgb(0 0 0 / 0.3);
-  --c-overlay-dialog: rgb(0 0 0 / 0.4);
-  --c-skeleton-dark: #e5e7eb;
-  --c-skeleton-light: #f3f4f6;
-  --c-loading-dots: #d1d5db;
-  --c-nav-bg: rgba(255, 255, 255, 0.92);
+  --c-positive-surface: #ECFDF5;
+  --c-positive-border: #A7F3D0;
+  --c-positive-bar: #34D399;
+
+  /* Danger — Red */
+  --c-danger: #EF4444;
+  --c-danger-hover: #DC2626;
+  --c-danger-text: #EF4444;
+  --c-danger-text-muted: #F87171;
+  --c-danger-border: #FECACA;
+  --c-danger-surface: #FEF2F2;
+  --c-danger-input-border: #FCA5A5;
+
+  /* Warning & Info */
+  --c-warning: #F59E0B;
+  --c-warning-bar: #FBBF24;
+  --c-info: #6366F1;
+  --c-info-bar: #818CF8;
+
+  /* Beauty-specific tokens */
+  --c-macro-carbs: #FBBF24;
+  --c-macro-fat: #CE3D66;
+  --c-exercise-surface: #F0F0FF;
+
+  /* Chrome */
+  --c-overlay: rgb(26 26 46 / 0.3);
+  --c-overlay-dialog: rgb(26 26 46 / 0.5);
+  --c-skeleton-dark: #FFE3E9;
+  --c-skeleton-light: #FFF0F3;
+  --c-loading-dots: #F5B3C4;
+
+  /* Navigation */
+  --c-nav-bg: rgba(255, 251, 252, 0.92);
   --c-nav-border: transparent;
-  --c-nav-active: #18181b;
-  --c-nav-inactive: #9ca3af;
-  --c-nav-inactive-hover: #4b5563;
-  --c-input-ring: #18181b;
+  --c-nav-active: #CE3D66;
+  --c-nav-inactive: #8E8AA0;
+  --c-nav-inactive-hover: #5C5470;
+
+  /* Input */
+  --c-input-ring: #CE3D66;
 }
 
-/* ── Dark theme ── */
+/* ── Dark theme — Bossy Pink ── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --c-bg: #000000;
-    --c-surface: #161618;
-    --c-surface-secondary: #1e1e21;
-    --c-surface-hover: #232326;
-    --c-border: rgba(255, 255, 255, 0.04);
-    --c-border-strong: rgba(255, 255, 255, 0.08);
-    --c-text-primary: #f0f0f2;
-    --c-text-secondary: #9b9ba6;
-    --c-text-tertiary: #636370;
-    --c-text-label: #c5c5cd;
-    --c-text-muted: #a5a5b0;
-    --c-accent: #f0f0f2;
-    --c-accent-hover: #d4d4d8;
-    --c-accent-fg: #18181b;
-    --c-accent-text: #f0f0f2;
-    --c-accent-surface: #27272a;
-    --c-accent-border: #3f3f46;
-    --c-positive: #34d399;
-    --c-positive-text: #6ee7b7;
-    --c-positive-surface: #052e1c;
-    --c-positive-border: #065f3a;
-    --c-positive-bar: #10b981;
-    --c-danger: #f87171;
-    --c-danger-hover: #ef4444;
-    --c-danger-text: #fca5a5;
-    --c-danger-text-muted: #fca5a5;
-    --c-danger-border: #7f1d1d;
-    --c-danger-surface: #2a1215;
-    --c-danger-input-border: #b91c1c;
-    --c-warning: #fb923c;
-    --c-warning-bar: #f97316;
-    --c-info: #60a5fa;
-    --c-info-bar: #3b82f6;
-    --c-macro-carbs: #f59e0b;
-    --c-macro-fat: #f43f5e;
-    --c-exercise-surface: #172035;
+    --c-bg: #0D0D12;
+    --c-surface: #1A1A24;
+    --c-surface-secondary: #222230;
+    --c-surface-hover: #2A2A3A;
+
+    --c-border: rgba(206, 61, 102, 0.10);
+    --c-border-strong: rgba(206, 61, 102, 0.18);
+
+    --c-text-primary: #F5F0F2;
+    --c-text-secondary: #A8A0B8;
+    --c-text-tertiary: #6B6580;
+    --c-text-label: #D0C8DC;
+    --c-text-muted: #9890A8;
+
+    --c-accent: #E0527A;
+    --c-accent-hover: #CE3D66;
+    --c-accent-fg: #FFFFFF;
+    --c-accent-text: #E0527A;
+    --c-accent-surface: #2A1520;
+    --c-accent-border: #5C2038;
+
+    --c-positive: #34D399;
+    --c-positive-text: #6EE7B7;
+    --c-positive-surface: #052E1C;
+    --c-positive-border: #065F3A;
+    --c-positive-bar: #10B981;
+
+    --c-danger: #F87171;
+    --c-danger-hover: #EF4444;
+    --c-danger-text: #FCA5A5;
+    --c-danger-text-muted: #FCA5A5;
+    --c-danger-border: #7F1D1D;
+    --c-danger-surface: #2A1215;
+    --c-danger-input-border: #B91C1C;
+
+    --c-warning: #FBBF24;
+    --c-warning-bar: #F59E0B;
+    --c-info: #818CF8;
+    --c-info-bar: #6366F1;
+
+    --c-macro-carbs: #F59E0B;
+    --c-macro-fat: #E0527A;
+    --c-exercise-surface: #1A1A30;
+
     --c-overlay: rgb(0 0 0 / 0.5);
-    --c-overlay-dialog: rgb(0 0 0 / 0.6);
-    --c-skeleton-dark: #2e2e32;
-    --c-skeleton-light: #232326;
-    --c-loading-dots: #4b5563;
-    --c-nav-bg: rgba(0, 0, 0, 0.92);
+    --c-overlay-dialog: rgb(0 0 0 / 0.7);
+    --c-skeleton-dark: #2A2A3A;
+    --c-skeleton-light: #1A1A24;
+    --c-loading-dots: #5C2038;
+
+    --c-nav-bg: rgba(13, 13, 18, 0.92);
     --c-nav-border: transparent;
-    --c-nav-active: #f0f0f2;
-    --c-nav-inactive: #636370;
-    --c-nav-inactive-hover: #a5a5b0;
-    --c-input-ring: #f0f0f2;
+    --c-nav-active: #E0527A;
+    --c-nav-inactive: #6B6580;
+    --c-nav-inactive-hover: #A8A0B8;
+
+    --c-input-ring: #E0527A;
   }
 }
 
