@@ -1,0 +1,65 @@
+name: Vercel Status
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action: status, logs, redeploy'
+        required: true
+        default: 'status'
+        type: choice
+        options:
+          - status
+          - logs
+          - redeploy
+
+jobs:
+  vercel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get latest deployment
+        if: inputs.action == 'status' || inputs.action == 'logs'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          # Get project deployments
+          DEPLOYMENTS=$(curl -s \
+            "https://api.vercel.com/v6/deployments?projectId=pesona&limit=3&teamId=" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}")
+
+          echo "=== Latest Deployments ==="
+          echo "$DEPLOYMENTS" | jq -r '.deployments[] | "[\(.state)] \(.url) - \(.meta.githubCommitMessage // "no message") (\(.created | . / 1000 | strftime("%Y-%m-%d %H:%M UTC")))"' 2>/dev/null || echo "$DEPLOYMENTS"
+
+      - name: Get deployment logs
+        if: inputs.action == 'logs'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          # Get latest deployment ID
+          DEPLOY_ID=$(curl -s \
+            "https://api.vercel.com/v6/deployments?projectId=pesona&limit=1&teamId=" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" | jq -r '.deployments[0].uid')
+
+          echo "=== Build Logs for $DEPLOY_ID ==="
+          curl -s \
+            "https://api.vercel.com/v2/deployments/${DEPLOY_ID}/events" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" | jq -r '.[].text // empty' 2>/dev/null | tail -50
+
+      - name: Trigger redeploy
+        if: inputs.action == 'redeploy'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          # Get latest deployment
+          DEPLOY_ID=$(curl -s \
+            "https://api.vercel.com/v6/deployments?projectId=pesona&limit=1&teamId=" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" | jq -r '.deployments[0].uid')
+
+          # Redeploy
+          RESULT=$(curl -s -X POST \
+            "https://api.vercel.com/v13/deployments?forceNew=1&teamId=" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"pesona\",\"deploymentId\":\"${DEPLOY_ID}\"}")
+
+          echo "$RESULT" | jq '{url: .url, state: .readyState, created: .createdAt}' 2>/dev/null || echo "$RESULT"

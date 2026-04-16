@@ -1,0 +1,65 @@
+name: Vercel Env Vars
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action: list, set'
+        required: true
+        default: 'list'
+        type: choice
+        options:
+          - list
+          - set
+      key:
+        description: 'Env var name (for set action)'
+        required: false
+        type: string
+      value:
+        description: 'Env var value (for set action)'
+        required: false
+        type: string
+
+jobs:
+  env-vars:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Vercel project ID
+        id: project
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          PROJECT=$(curl -s \
+            "https://api.vercel.com/v9/projects/pesona" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}")
+          PROJECT_ID=$(echo "$PROJECT" | jq -r '.id')
+          echo "project_id=$PROJECT_ID" >> $GITHUB_OUTPUT
+
+      - name: List env vars
+        if: inputs.action == 'list'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          ENVS=$(curl -s \
+            "https://api.vercel.com/v9/projects/${{ steps.project.outputs.project_id }}/env" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}")
+
+          echo "=== Environment Variables ==="
+          echo "$ENVS" | jq -r '.envs[] | "\(.key) = \(.value // "[encrypted]") [\(.target | join(","))]"' 2>/dev/null || echo "$ENVS"
+
+      - name: Set env var
+        if: inputs.action == 'set' && inputs.key != '' && inputs.value != ''
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          RESULT=$(curl -s -X POST \
+            "https://api.vercel.com/v10/projects/${{ steps.project.outputs.project_id }}/env" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg key "${{ inputs.key }}" \
+              --arg val "${{ inputs.value }}" \
+              '{key: $key, value: $val, type: "encrypted", target: ["production", "preview", "development"]}')")
+
+          echo "$RESULT" | jq '{key: .key, created: .createdAt}' 2>/dev/null || echo "$RESULT"
+          echo "Done. Redeploy needed for changes to take effect."
