@@ -1,0 +1,51 @@
+name: Supabase Migrate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/1**.sql'
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find new Pesona migrations (100+)
+        id: find
+        run: |
+          FILES=$(find supabase/migrations -name '1*.sql' | sort)
+          echo "files<<EOF" >> $GITHUB_OUTPUT
+          echo "$FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          if [ -z "$FILES" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run migrations against Supabase
+        if: steps.find.outputs.skip == 'false'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        run: |
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            echo "=== Running: $file ==="
+            SQL=$(cat "$file")
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+              "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_ID}/database/query" \
+              -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg q "$SQL" '{query: $q}')")
+            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+            if [ "$HTTP_CODE" -ge 400 ]; then
+              echo "ERROR ($HTTP_CODE): $BODY"
+              exit 1
+            else
+              echo "OK ($HTTP_CODE)"
+            fi
+          done <<< "${{ steps.find.outputs.files }}"
