@@ -19,24 +19,24 @@ describe('Chat Page', () => {
   it('renders welcome message when no history', async () => {
     renderWithProviders(<ChatPage />);
     await waitFor(() => {
-      expect(screen.getByText(/Halo, aku Sona!/)).toBeInTheDocument();
+      expect(screen.getByText(/Halo, aku Sona!|Hi, I'm Sona!/)).toBeInTheDocument();
     });
   });
 
   it('renders welcome capabilities list', async () => {
     renderWithProviders(<ChatPage />);
     await waitFor(() => {
-      expect(screen.getByText(/skincare routine pagi/i)).toBeInTheDocument();
-      expect(screen.getByText(/produk sesuai jenis kulit/i)).toBeInTheDocument();
-      expect(screen.getByText(/kondisi kulit dari foto/i)).toBeInTheDocument();
-      expect(screen.getByText(/iklim tropis Indonesia/i)).toBeInTheDocument();
+      expect(screen.getByText(/skincare routine pagi|morning.*evening/i)).toBeInTheDocument();
+      expect(screen.getByText(/produk sesuai jenis kulit|Product recommendations/i)).toBeInTheDocument();
+      expect(screen.getByText(/kondisi kulit dari foto|skin condition from photos/i)).toBeInTheDocument();
+      expect(screen.getByText(/iklim tropis Indonesia|tropical Indonesian/i)).toBeInTheDocument();
     });
   });
 
   it('renders quick suggestion chips', async () => {
     renderWithProviders(<ChatPage />);
     await waitFor(() => {
-      expect(screen.getByText(/Halo, aku Sona!/)).toBeInTheDocument();
+      expect(screen.getByText(/Halo, aku Sona!|Hi, I'm Sona!/)).toBeInTheDocument();
     });
     // Quick chips should be visible when no messages
     const chips = screen.getAllByRole('button').filter(
@@ -48,7 +48,7 @@ describe('Chat Page', () => {
   it('renders textarea input with placeholder', async () => {
     renderWithProviders(<ChatPage />);
     await waitFor(() => {
-      expect(screen.getByText(/Halo, aku Sona!/)).toBeInTheDocument();
+      expect(screen.getByText(/Halo, aku Sona!|Hi, I'm Sona!/)).toBeInTheDocument();
     });
     const textarea = screen.getByRole('textbox');
     expect(textarea).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe('Chat Page', () => {
   it('renders send button', async () => {
     renderWithProviders(<ChatPage />);
     await waitFor(() => {
-      expect(screen.getByText(/Halo, aku Sona!/)).toBeInTheDocument();
+      expect(screen.getByText(/Halo, aku Sona!|Hi, I'm Sona!/)).toBeInTheDocument();
     });
     // Send button should exist (contains an SVG arrow icon)
     const buttons = screen.getAllByRole('button');
@@ -68,7 +68,7 @@ describe('Chat Page', () => {
   it('send button is disabled when input is empty', async () => {
     renderWithProviders(<ChatPage />);
     await waitFor(() => {
-      expect(screen.getByText(/Halo, aku Sona!/)).toBeInTheDocument();
+      expect(screen.getByText(/Halo, aku Sona!|Hi, I'm Sona!/)).toBeInTheDocument();
     });
     const buttons = screen.getAllByRole('button');
     const sendBtn = buttons.find(btn => btn.querySelector('svg'));
@@ -83,7 +83,7 @@ describe('Chat Page', () => {
     });
 
     renderWithProviders(<ChatPage />);
-    await waitFor(() => expect(screen.getByText(/Halo, aku Sona!/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Halo, aku Sona!|Hi, I'm Sona!/)).toBeInTheDocument());
 
     const textarea = screen.getByRole('textbox');
     await user.type(textarea, 'Hello Sona');
@@ -102,7 +102,7 @@ describe('Chat Page', () => {
     });
 
     renderWithProviders(<ChatPage />);
-    await waitFor(() => expect(screen.getByText(/Halo, aku Sona!/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Halo, aku Sona!|Hi, I'm Sona!/)).toBeInTheDocument());
 
     const textarea = screen.getByRole('textbox');
     await user.type(textarea, 'My skin is oily');
@@ -121,7 +121,7 @@ describe('Chat Page', () => {
     });
 
     renderWithProviders(<ChatPage />);
-    await waitFor(() => expect(screen.getByText(/Halo, aku Sona!/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Halo, aku Sona!|Hi, I'm Sona!/)).toBeInTheDocument());
 
     const textarea = screen.getByRole('textbox');
     await user.type(textarea, 'Help me');

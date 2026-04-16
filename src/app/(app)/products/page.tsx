@@ -77,7 +77,7 @@ export default function ProductsPage() {
     <div className={cn('max-w-lg mx-auto px-4 pb-24', isExpanded && 'lg:max-w-4xl lg:px-8')}>
       {/* Header */}
       <div className="sticky top-0 z-20 bg-bg pb-3 -mx-4 px-4 pt-6">
-        <h1 className="text-xl font-bold text-text-primary mb-3">Produk Skincare</h1>
+        <h1 className="text-xl font-bold text-text-primary mb-3">{t('product.title')}</h1>
 
         {/* Search */}
         <div className="relative mb-3">
@@ -88,7 +88,7 @@ export default function ProductsPage() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Cari produk, brand, atau ingredient..."
+            placeholder={t('product.searchPlaceholder')}
             className="w-full pl-10 pr-4 py-2.5 bg-surface rounded-xl border border-border-strong text-sm focus:outline-none focus:ring-1 focus:ring-input-ring"
           />
         </div>
@@ -131,7 +131,7 @@ export default function ProductsPage() {
       </div>
 
       {/* Results count */}
-      <p className="text-xs text-text-tertiary mb-3">{filtered.length} produk ditemukan</p>
+      <p className="text-xs text-text-tertiary mb-3">{filtered.length} {t('product.resultsCount')}</p>
 
       {/* Product grid */}
       {loading ? (
@@ -142,7 +142,7 @@ export default function ProductsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-sm text-text-secondary">Tidak ada produk yang cocok</p>
+          <p className="text-sm text-text-secondary">{t('product.noMatch')}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -210,7 +210,7 @@ export default function ProductsPage() {
               {/* How to use */}
               {selectedProduct.how_to_use && (
                 <div className="bg-surface rounded-xl p-3 mb-4">
-                  <p className="text-xs font-semibold text-text-label mb-1">Cara Pakai</p>
+                  <p className="text-xs font-semibold text-text-label mb-1">{t('product.howToUse')}</p>
                   <p className="text-xs text-text-secondary">{selectedProduct.how_to_use}</p>
                 </div>
               )}
@@ -230,7 +230,7 @@ export default function ProductsPage() {
               {/* Suitable skin types */}
               {selectedProduct.suitable_skin_types.length > 0 && (
                 <div className="mb-4">
-                  <p className="text-xs font-semibold text-text-label mb-2">Cocok untuk</p>
+                  <p className="text-xs font-semibold text-text-label mb-2">{t('product.suitableFor')}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedProduct.suitable_skin_types.map((st, i) => (
                       <span key={i} className="px-2 py-1 bg-accent-surface text-accent-text rounded-lg text-xs capitalize">{t(`skin.type.${st}`)}</span>
@@ -242,7 +242,7 @@ export default function ProductsPage() {
               {/* Concerns addressed */}
               {selectedProduct.addresses_concerns.length > 0 && (
                 <div className="mb-5">
-                  <p className="text-xs font-semibold text-text-label mb-2">Membantu</p>
+                  <p className="text-xs font-semibold text-text-label mb-2">{t('product.helpsFor')}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedProduct.addresses_concerns.map((c, i) => (
                       <span key={i} className="px-2 py-1 bg-positive-surface text-positive-text rounded-lg text-xs">{t(`skin.concern.${c}`)}</span>

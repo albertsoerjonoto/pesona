@@ -12,7 +12,7 @@ describe('Products Page', () => {
   it('renders the page header', async () => {
     renderWithProviders(<ProductsPage />);
     await waitFor(() => {
-      expect(screen.getByText('Produk Skincare')).toBeInTheDocument();
+      expect(screen.getByText(/Produk Skincare|Skincare Products/)).toBeInTheDocument();
     });
   });
 

@@ -166,27 +166,27 @@ export default function ChatPage() {
               <div className="bg-surface rounded-2xl p-5 mb-4">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-2xl">💆‍♀️</span>
-                  <p className="font-semibold text-text-primary">Halo, aku Sona!</p>
+                  <p className="font-semibold text-text-primary">{t('chat.welcomeTitle')}</p>
                 </div>
                 <p className="text-sm text-text-secondary leading-relaxed mb-3">
-                  AI beauty coach kamu dari Pesona.io. Aku bisa bantu:
+                  {t('chat.welcomeDesc')}
                 </p>
                 <ul className="space-y-2 text-sm text-text-secondary">
                   <li className="flex items-start gap-2">
                     <span className="text-accent mt-0.5">•</span>
-                    Membuat skincare routine pagi & malam
+                    {t('chat.welcomeRoutine')}
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-accent mt-0.5">•</span>
-                    Rekomendasi produk sesuai jenis kulit kamu
+                    {t('chat.welcomeProduct')}
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-accent mt-0.5">•</span>
-                    Analisis kondisi kulit dari foto
+                    {t('chat.welcomeAnalysis')}
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-accent mt-0.5">•</span>
-                    Tips perawatan untuk iklim tropis Indonesia
+                    {t('chat.welcomeTips')}
                   </li>
                 </ul>
               </div>
@@ -229,7 +229,7 @@ export default function ChatPage() {
                 {msg.metadata?.routine_suggestion && (
                   <div className="mt-3 bg-bg/50 rounded-xl p-3 border border-border">
                     <p className="text-sm font-semibold mb-2">
-                      {msg.metadata.routine_suggestion.type === 'morning' ? 'Routine Pagi ☀️' : 'Routine Malam 🌙'}
+                      {msg.metadata.routine_suggestion.type === 'morning' ? `${t('chat.routineMorning')} ☀️` : `${t('chat.routineEvening')} 🌙`}
                     </p>
                     <div className="space-y-1.5">
                       {msg.metadata.routine_suggestion.steps?.map((step, i) => (
