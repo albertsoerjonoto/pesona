@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/lib/i18n';
 import { useDesktopLayout } from '@/hooks/useDesktopLayout';
+import { useToast } from '@/components/Toast';
 import { cn } from '@/lib/utils';
 import type { CoachResponse } from '@/lib/types';
 
@@ -29,13 +31,16 @@ const QUICK_CHIPS = [
 
 export default function ChatPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const { t } = useLocale();
   const { isExpanded } = useDesktopLayout();
+  const { showToast, ToastContainer } = useToast();
 
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [savingRoutine, setSavingRoutine] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -146,8 +151,51 @@ export default function ChatPage() {
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   };
 
+  const saveRoutineFromChat = async (routineSuggestion: NonNullable<CoachResponse['routine_suggestion']>) => {
+    if (!user || savingRoutine) return;
+    setSavingRoutine(true);
+
+    try {
+      const supabase = createClient();
+      const routineType = routineSuggestion.type === 'evening' ? 'evening' : 'morning';
+
+      // Deactivate existing routine of same type
+      await supabase
+        .from('routines')
+        .update({ active: false })
+        .eq('user_id', user.id)
+        .eq('type', routineType)
+        .eq('active', true);
+
+      // Insert new routine
+      await supabase.from('routines').insert({
+        user_id: user.id,
+        type: routineType,
+        steps: routineSuggestion.steps?.map((s, i) => ({
+          step_number: s.step_number || i + 1,
+          category: s.category || 'other',
+          product_name: s.product_name || '',
+          product_brand: s.product_brand || '',
+          instruction: s.instruction || '',
+        })) || [],
+        generated_by: 'ai',
+        active: true,
+        ai_reasoning: 'Generated from chat conversation',
+      });
+
+      showToast('success', `Routine ${routineType === 'morning' ? 'pagi' : 'malam'} tersimpan! 🎉`);
+
+      // Redirect to log page after short delay
+      setTimeout(() => router.push('/log'), 1000);
+    } catch {
+      showToast('error', 'Gagal menyimpan routine');
+    }
+    setSavingRoutine(false);
+  };
+
   return (
     <div className={cn('flex flex-col h-dvh', isExpanded && 'sm:h-screen')}>
+      {ToastContainer}
       {/* Header */}
       <div className="sticky top-0 z-20 bg-bg/80 backdrop-blur-md border-b border-border px-4 py-3">
         <div className="flex items-center justify-center gap-2">
@@ -243,6 +291,16 @@ export default function ChatPage() {
                         </div>
                       ))}
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        saveRoutineFromChat(msg.metadata!.routine_suggestion!);
+                      }}
+                      disabled={savingRoutine}
+                      className="w-full mt-3 py-2 bg-accent text-accent-fg text-xs font-semibold rounded-lg hover:bg-accent-hover transition-all active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {savingRoutine ? 'Menyimpan...' : '✨ Pakai Routine Ini'}
+                    </button>
                   </div>
                 )}
 
