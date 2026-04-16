@@ -22,10 +22,10 @@ export function TourBubble({ spotlight }: TourBubbleProps) {
   useEffect(() => {
     if (prevStepRef.current !== currentStepIndex) {
       prevStepRef.current = currentStepIndex;
-      setAnimating(false);
+      queueMicrotask(() => setAnimating(false));
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          setAnimating(true);
+          queueMicrotask(() => setAnimating(true));
         });
       });
     }

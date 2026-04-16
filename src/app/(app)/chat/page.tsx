@@ -1,13 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/lib/i18n';
 import { useDesktopLayout } from '@/hooks/useDesktopLayout';
 import { cn } from '@/lib/utils';
 
 export default function ChatPage() {
-  const { user } = useAuth();
   const { t } = useLocale();
   const { isExpanded } = useDesktopLayout();
   const [input, setInput] = useState('');
