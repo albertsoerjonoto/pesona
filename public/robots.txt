@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /_admin/
+Disallow: /subscription/
+
+Sitemap: https://pesona.io/sitemap.xml

@@ -1,12 +1,14 @@
 {
-  "name": "Pesona.io",
+  "name": "Pesona — AI Beauty Coach",
   "short_name": "Pesona",
-  "description": "AI-powered personal beauty & body coach for Indonesia",
+  "description": "AI personal beauty coach kamu dalam bahasa kamu",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#18181b",
+  "background_color": "#FFF7F3",
+  "theme_color": "#CE3D66",
   "orientation": "portrait",
+  "lang": "id-ID",
+  "categories": ["health", "lifestyle", "beauty"],
   "icons": [
     {
       "src": "/icons/icon-192.png",

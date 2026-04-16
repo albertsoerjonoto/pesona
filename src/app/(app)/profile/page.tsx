@@ -44,6 +44,8 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [subscriptionTier, setSubscriptionTier] = useState<string>('free');
+  const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
   const fetchedForUser = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -81,6 +83,20 @@ export default function ProfilePage() {
     if (!user) return;
     if (fetchedForUser.current === user.id) return;
     fetchedForUser.current = user.id;
+
+    const fetchSubscription = async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('subscriptions')
+        .select('tier, status, current_period_end')
+        .eq('user_id', user.id)
+        .single();
+      if (data && data.status === 'active') {
+        setSubscriptionTier(data.tier || 'free');
+        setSubscriptionEnd(data.current_period_end);
+      }
+    };
+    fetchSubscription().catch(() => { /* subscriptions table may not exist yet */ });
 
     const fetchOrCreateProfile = async () => {
       const supabase = createClient();
@@ -405,8 +421,38 @@ export default function ProfilePage() {
             </div>
           </div>
 
+          {/* Langganan (Subscription) section */}
+          <p className="text-xs font-medium text-text-tertiary uppercase tracking-wider px-1 mt-4 mb-2">Langganan</p>
+          <div className="bg-surface rounded-2xl overflow-hidden">
+            <div className={`${rowClass} ${dividerClass}`}>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-accent-surface rounded-lg flex items-center justify-center">
+                  <span className="text-sm">✨</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-text-primary">{subscriptionTier === 'free' ? 'Pesona Coba' : subscriptionTier === 'plus' ? 'Pesona Plus' : subscriptionTier === 'pro' ? 'Pesona Pro' : 'Pesona Glow'}</p>
+                  <p className="text-xs text-text-tertiary">{subscriptionTier === 'free' ? 'Gratis — fitur terbatas' : 'Aktif'}</p>
+                </div>
+              </div>
+              {subscriptionTier === 'free' && (
+                <button
+                  onClick={() => router.push('/subscription/checkout?tier=plus')}
+                  className="px-3 py-1.5 bg-accent text-accent-fg text-xs font-medium rounded-lg hover:bg-accent-hover transition-all"
+                >
+                  Upgrade
+                </button>
+              )}
+            </div>
+            {subscriptionTier !== 'free' && subscriptionEnd && (
+              <div className={rowClass}>
+                <span className="text-sm text-text-secondary">Berlaku sampai</span>
+                <span className="text-sm text-text-tertiary">{new Date(subscriptionEnd).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+              </div>
+            )}
+          </div>
+
           {/* Language section */}
-          <p className="text-xs font-medium text-text-tertiary uppercase tracking-wider px-1 mt-4 mb-2">{t('profile.language')}</p>
+          <p className="text-xs font-medium text-text-tertiary uppercase tracking-wider px-1 mt-6 mb-2">{t('profile.language')}</p>
           <div className="bg-surface rounded-2xl overflow-hidden">
             <div className={rowClass}>
               <span className="text-sm text-text-primary shrink-0 mr-3">{t('profile.language')}</span>
@@ -627,26 +673,44 @@ export default function ProfilePage() {
         </>
       )}
 
-      <button
-        onClick={() => {
-          if (!user) return;
-          // Reset tour_completed and navigate to chat with tour
-          const replayTour = async () => {
-            const supabase = createClient();
-            await supabase.from('profiles').update({ tour_completed: false }).eq('id', user.id);
-            startTour();
-            router.push('/chat');
-          };
-          replayTour();
-        }}
-        className="w-full mt-6 py-3 text-text-secondary hover:text-accent-text font-medium rounded-xl hover:bg-surface transition-all text-sm"
-      >
-        {t('tour.replayTour')}
-      </button>
+          {/* Privasi & Bantuan */}
+          <p className="text-xs font-medium text-text-tertiary uppercase tracking-wider px-1 mt-8 mb-2">Privasi & Bantuan</p>
+          <div className="bg-surface rounded-2xl overflow-hidden">
+            <button
+              onClick={() => router.push('/privacy')}
+              className={`${rowClass} ${dividerClass} w-full text-left`}
+            >
+              <span className="text-sm text-text-primary">Kebijakan Privasi</span>
+              <svg className="w-4 h-4 text-text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </button>
+            <button
+              onClick={() => router.push('/terms')}
+              className={`${rowClass} ${dividerClass} w-full text-left`}
+            >
+              <span className="text-sm text-text-primary">Syarat & Ketentuan</span>
+              <svg className="w-4 h-4 text-text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </button>
+            <button
+              onClick={() => {
+                if (!user) return;
+                const replayTour = async () => {
+                  const supabase = createClient();
+                  await supabase.from('profiles').update({ tour_completed: false }).eq('id', user.id);
+                  startTour();
+                  router.push('/chat');
+                };
+                replayTour();
+              }}
+              className={`${rowClass} w-full text-left`}
+            >
+              <span className="text-sm text-text-primary">{t('tour.replayTour')}</span>
+              <svg className="w-4 h-4 text-text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </div>
 
       <button
         onClick={handleSignOut}
-        className="w-full mt-4 py-3 text-text-secondary hover:text-danger-text font-medium rounded-xl hover:bg-danger-surface transition-all"
+        className="w-full mt-6 py-3 text-text-secondary hover:text-danger-text font-medium rounded-xl hover:bg-danger-surface transition-all"
       >
         {t('profile.signOut')}
       </button>
@@ -668,7 +732,12 @@ export default function ProfilePage() {
         onCancel={() => !deleting && setShowDeleteConfirm(false)}
       />
 
-      <p className="text-center text-xs text-text-tertiary mt-12 mb-6">Pesona.io v1.0</p>
+      <div className="mt-10 mb-4 p-3 bg-surface rounded-xl">
+        <p className="text-[10px] text-text-tertiary leading-relaxed text-center">
+          Pesona adalah AI personal coach untuk wellness dan edukasi. Pesona bukan dokter, bukan dermatologist, dan tidak menggantikan konsultasi medis. Untuk kondisi kulit atau kesehatan yang serius, silakan konsultasi dengan dokter atau dermatologist.
+        </p>
+      </div>
+      <p className="text-center text-xs text-text-tertiary mb-6">Pesona.io v1.0</p>
     </div>
   );
 }
