@@ -17,8 +17,11 @@ import { compressAvatar } from '@/lib/image';
 import { useLocale } from '@/lib/i18n';
 import { useDesktopLayout } from '@/hooks/useDesktopLayout';
 import { useTour } from '@/components/tour/useTour';
-import PaywallModal from '@/components/PaywallModal';
+import dynamic from 'next/dynamic';
 import type { Profile, Gender, Locale } from '@/lib/types';
+
+// Lazy-load PaywallModal — only pulled in when user opens it
+const PaywallModal = dynamic(() => import('@/components/PaywallModal'), { ssr: false });
 
 export default function ProfilePage() {
   const { user } = useAuth();

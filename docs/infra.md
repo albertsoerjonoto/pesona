@@ -40,7 +40,7 @@
 
 | Variable | Description |
 |----------|-------------|
-| `ADMIN_SECRET` | Secret for /_admin access |
+| `ADMIN_SECRET` | Secret for /admin access |
 | `CRON_SECRET` | Vercel cron job authorization |
 
 ### App

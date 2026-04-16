@@ -23,20 +23,24 @@ export type FlagValue = boolean | string | undefined;
  * Returns undefined until PostHog finishes loading flags, then the value.
  */
 export function useFeatureFlag(flagKey: string): FlagValue {
-  const [value, setValue] = useState<FlagValue>(undefined);
+  const [value, setValue] = useState<FlagValue>(() => {
+    // Initialize synchronously from PostHog if flags are already loaded.
+    // Returns undefined during SSR and on first paint when flags aren't ready.
+    if (typeof window === 'undefined') return undefined;
+    return posthog.getFeatureFlag(flagKey);
+  });
 
   useEffect(() => {
-    // If flags are already loaded, get immediately
-    const current = posthog.getFeatureFlag(flagKey);
-    if (current !== undefined) {
-      setValue(current);
-      return;
-    }
-
-    // Otherwise wait for flags to load
-    posthog.onFeatureFlags(() => {
+    // Subscribe to flag updates. This will fire once flags finish loading
+    // (possibly after mount), and again on any server-push changes.
+    const unsubscribe = posthog.onFeatureFlags(() => {
       setValue(posthog.getFeatureFlag(flagKey));
     });
+
+    return () => {
+      // posthog.onFeatureFlags returns an unsubscribe function in newer versions
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
   }, [flagKey]);
 
   return value;
