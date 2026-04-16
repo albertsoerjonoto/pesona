@@ -4,11 +4,11 @@ type Translations = Record<string, Record<Locale, string>>;
 
 export const translations: Translations = {
   // ── Navigation ──
-  'nav.overview': { id: 'Ringkasan', en: 'Overview' },
-  'nav.log': { id: 'Log', en: 'Log' },
-  'nav.chat': { id: 'Chat', en: 'Chat' },
+  'nav.overview': { id: 'Home', en: 'Home' },
+  'nav.log': { id: 'Rutinitas', en: 'Routine' },
+  'nav.chat': { id: 'Coach', en: 'Coach' },
   'nav.profile': { id: 'Profil', en: 'Profile' },
-  'nav.friends': { id: 'Teman', en: 'Friends' },
+  'nav.friends': { id: 'Progress', en: 'Progress' },
 
   // ── Common ──
   'common.save': { id: 'Simpan', en: 'Save' },
