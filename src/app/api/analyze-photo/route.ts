@@ -41,7 +41,7 @@ INGAT: kamu BUKAN dokter. Analisis ini untuk tracking wellness saja.`;
 
 function validateOutput(text: string): { valid: boolean; violations: string[] } {
   const lower = text.toLowerCase();
-  const hits = FORBIDDEN_TERMS.filter(t => lower.includes(t));
+  const hits = FORBIDDEN_TERMS.filter(t => lower.includes(t.toLowerCase()));
   return hits.length ? { valid: false, violations: hits } : { valid: true, violations: [] };
 }
 
