@@ -1,4 +1,4 @@
-CREATE TABLE public.products (
+CREATE TABLE IF NOT EXISTS public.products (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
   brand text NOT NULL,
@@ -19,4 +19,4 @@ CREATE TABLE public.products (
   created_at timestamptz DEFAULT now()
 );
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Products are publicly readable" ON public.products FOR SELECT USING (true);
+DO $$ BEGIN CREATE POLICY "Products are publicly readable" ON public.products FOR SELECT USING (true); EXCEPTION WHEN duplicate_object THEN NULL; END $$;

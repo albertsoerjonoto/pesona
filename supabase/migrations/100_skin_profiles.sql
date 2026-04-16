@@ -1,4 +1,4 @@
-CREATE TABLE public.skin_profiles (
+CREATE TABLE IF NOT EXISTS public.skin_profiles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   skin_type text CHECK (skin_type IN ('oily', 'dry', 'combination', 'sensitive', 'normal')),
@@ -16,6 +16,6 @@ CREATE TABLE public.skin_profiles (
   UNIQUE(user_id)
 );
 ALTER TABLE public.skin_profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can view own skin profile" ON public.skin_profiles FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own skin profile" ON public.skin_profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own skin profile" ON public.skin_profiles FOR UPDATE USING (auth.uid() = user_id);
+DO $$ BEGIN CREATE POLICY "Users can view own skin profile" ON public.skin_profiles FOR SELECT USING (auth.uid() = user_id); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "Users can insert own skin profile" ON public.skin_profiles FOR INSERT WITH CHECK (auth.uid() = user_id); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE POLICY "Users can update own skin profile" ON public.skin_profiles FOR UPDATE USING (auth.uid() = user_id); EXCEPTION WHEN duplicate_object THEN NULL; END $$;

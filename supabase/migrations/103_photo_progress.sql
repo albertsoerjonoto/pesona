@@ -1,4 +1,4 @@
-CREATE TABLE public.photo_progress (
+CREATE TABLE IF NOT EXISTS public.photo_progress (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   photo_url text NOT NULL,
@@ -9,4 +9,4 @@ CREATE TABLE public.photo_progress (
   created_at timestamptz DEFAULT now()
 );
 ALTER TABLE public.photo_progress ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can manage own photos" ON public.photo_progress FOR ALL USING (auth.uid() = user_id);
+DO $$ BEGIN CREATE POLICY "Users can manage own photos" ON public.photo_progress FOR ALL USING (auth.uid() = user_id); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
