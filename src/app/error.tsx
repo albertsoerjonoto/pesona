@@ -15,34 +15,38 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-gray-50 px-4">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-bg px-4">
       <div className="w-full max-w-md text-center">
-        <h1 className="text-2xl font-bold text-gray-900">
+        <div className="w-16 h-16 mx-auto mb-4 bg-accent-surface rounded-full flex items-center justify-center">
+          <span className="text-3xl">🥺</span>
+        </div>
+        <h1 className="text-2xl font-bold text-text-primary">
           Ups, ada yang salah!
         </h1>
-        <p className="mt-3 text-gray-600">
-          Terjadi kesalahan yang tidak terduga. Silakan coba lagi atau kembali
-          ke beranda.
+        <p className="mt-3 text-text-secondary">
+          Terjadi kesalahan yang nggak terduga. Coba lagi atau balik ke beranda ya.
         </p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <button
             onClick={reset}
-            className="rounded-lg bg-pink-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-pink-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-600"
+            className="rounded-xl bg-accent px-6 py-2.5 text-sm font-semibold text-accent-fg shadow-sm hover:bg-accent-hover active:scale-[0.98] transition-all"
           >
             Coba lagi
           </button>
           <a
             href="/dashboard"
-            className="rounded-lg bg-white px-6 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+            className="rounded-xl bg-surface px-6 py-2.5 text-sm font-semibold text-text-primary border border-border hover:bg-surface-hover transition-all"
           >
             Ke beranda
           </a>
         </div>
-        <p className="mt-8 text-xs text-gray-400">
-          Pesona adalah produk wellness &amp; coaching, bukan layanan
-          medis/telehealth. Untuk masalah kulit yang serius, silakan konsultasi
-          ke dokter kulit.
-        </p>
+        <div className="mt-8 p-3 bg-surface rounded-xl">
+          <p className="text-[10px] text-text-tertiary leading-relaxed">
+            Pesona adalah AI personal coach untuk wellness dan edukasi.
+            Pesona bukan dokter, bukan dermatologist, dan tidak menggantikan konsultasi medis.
+            Untuk kondisi kulit atau kesehatan yang serius, silakan konsultasi dengan dokter atau dermatologist.
+          </p>
+        </div>
       </div>
     </div>
   );

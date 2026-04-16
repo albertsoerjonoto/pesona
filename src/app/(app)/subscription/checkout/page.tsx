@@ -9,10 +9,8 @@ function CheckoutContent() {
   const period = searchParams.get('period') || 'monthly';
 
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   const startCheckout = useCallback(async () => {
-    setLoading(true);
     setError(null);
 
     try {
@@ -37,7 +35,6 @@ function CheckoutContent() {
       throw new Error('URL pembayaran tidak ditemukan');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal memproses. Coba lagi.');
-      setLoading(false);
     }
   }, [tier, period]);
 

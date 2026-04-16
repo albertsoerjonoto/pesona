@@ -11,12 +11,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await req.json();
-    const tier = body.tier as SubscriptionTier;
-    const period = (body.period as 'monthly' | 'annual') || 'monthly';
+    let body: { tier?: string; period?: string };
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    }
+
+    const tier = body.tier as SubscriptionTier | undefined;
+    const period = (body.period === 'annual' ? 'annual' : 'monthly') as 'monthly' | 'annual';
 
     if (!tier || !TIER_CONFIG[tier] || tier === 'free') {
       return NextResponse.json({ error: 'Invalid tier' }, { status: 400 });
+    }
+
+    // Don't allow downgrading an active paid subscription via a new checkout
+    const { data: existing } = await supabase
+      .from('subscriptions')
+      .select('tier, status, current_period_end')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (
+      existing &&
+      existing.status === 'active' &&
+      existing.tier !== 'free' &&
+      existing.current_period_end &&
+      new Date(existing.current_period_end) > new Date()
+    ) {
+      const tierOrder = ['free', 'plus', 'pro', 'elite'];
+      if (tierOrder.indexOf(tier) < tierOrder.indexOf(existing.tier)) {
+        return NextResponse.json(
+          { error: 'Cannot downgrade active subscription' },
+          { status: 409 },
+        );
+      }
     }
 
     const config = TIER_CONFIG[tier];
@@ -39,14 +68,17 @@ export async function POST(req: NextRequest) {
     });
 
     // Create pending subscription row (idempotent by user_id)
-    await supabase.from('subscriptions').upsert({
-      user_id: user.id,
-      tier,
-      status: 'pending',
-      billing_period: period,
-      price_idr: amount,
-      midtrans_order_id: orderId,
-    }, { onConflict: 'user_id' });
+    await supabase.from('subscriptions').upsert(
+      {
+        user_id: user.id,
+        tier,
+        status: 'pending',
+        billing_period: period,
+        price_idr: amount,
+        midtrans_order_id: orderId,
+      },
+      { onConflict: 'user_id' },
+    );
 
     return NextResponse.json({
       token: snap.token,

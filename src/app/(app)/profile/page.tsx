@@ -17,6 +17,7 @@ import { compressAvatar } from '@/lib/image';
 import { useLocale } from '@/lib/i18n';
 import { useDesktopLayout } from '@/hooks/useDesktopLayout';
 import { useTour } from '@/components/tour/useTour';
+import PaywallModal from '@/components/PaywallModal';
 import type { Profile, Gender, Locale } from '@/lib/types';
 
 export default function ProfilePage() {
@@ -46,6 +47,7 @@ export default function ProfilePage() {
   const [deleting, setDeleting] = useState(false);
   const [subscriptionTier, setSubscriptionTier] = useState<string>('free');
   const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
+  const [paywallOpen, setPaywallOpen] = useState(false);
   const fetchedForUser = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -436,7 +438,7 @@ export default function ProfilePage() {
               </div>
               {subscriptionTier === 'free' && (
                 <button
-                  onClick={() => router.push('/subscription/checkout?tier=plus')}
+                  onClick={() => setPaywallOpen(true)}
                   className="px-3 py-1.5 bg-accent text-accent-fg text-xs font-medium rounded-lg hover:bg-accent-hover transition-all"
                 >
                   Upgrade
@@ -730,6 +732,12 @@ export default function ProfilePage() {
         cancelLabel={t('common.cancel')}
         onConfirm={handleDeleteAccount}
         onCancel={() => !deleting && setShowDeleteConfirm(false)}
+      />
+
+      <PaywallModal
+        open={paywallOpen}
+        onClose={() => setPaywallOpen(false)}
+        trigger="feature_gate"
       />
 
       <div className="mt-10 mb-4 p-3 bg-surface rounded-xl">
