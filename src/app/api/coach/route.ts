@@ -136,12 +136,27 @@ export async function POST(req: NextRequest) {
 
     const rawText = response.text || '';
 
-    // Parse JSON response
-    let parsed;
+    // Parse and validate JSON response
+    let parsed: {
+      message: string;
+      routine_suggestion?: { type: string; steps: unknown[] } | null;
+      product_recommendations?: { name: string; brand: string; reason: string }[] | null;
+      daily_tip?: string | null;
+    };
     try {
-      parsed = JSON.parse(rawText);
+      const raw = JSON.parse(rawText);
+      // Validate shape — only accept expected fields with correct types
+      parsed = {
+        message: typeof raw.message === 'string' ? raw.message : rawText,
+        routine_suggestion: raw.routine_suggestion && typeof raw.routine_suggestion === 'object' && typeof raw.routine_suggestion.type === 'string'
+          ? { type: raw.routine_suggestion.type, steps: Array.isArray(raw.routine_suggestion.steps) ? raw.routine_suggestion.steps : [] }
+          : null,
+        product_recommendations: Array.isArray(raw.product_recommendations)
+          ? raw.product_recommendations.filter((r: unknown) => r && typeof r === 'object' && 'name' in (r as Record<string, unknown>)).slice(0, 10)
+          : null,
+        daily_tip: typeof raw.daily_tip === 'string' ? raw.daily_tip : null,
+      };
     } catch {
-      // If JSON parse fails, treat raw text as message
       parsed = { message: rawText, routine_suggestion: null, product_recommendations: null, daily_tip: null };
     }
 
