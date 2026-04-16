@@ -656,4 +656,118 @@ export const translations: Translations = {
   'product.bpom': { id: 'BPOM', en: 'BPOM' },
   'product.buyShopee': { id: 'Beli di Shopee', en: 'Buy on Shopee' },
   'product.ingredients': { id: 'Kandungan', en: 'Ingredients' },
+  'product.title': { id: 'Produk Skincare', en: 'Skincare Products' },
+  'product.searchPlaceholder': { id: 'Cari produk, brand, atau ingredient...', en: 'Search products, brands, or ingredients...' },
+  'product.allCategories': { id: 'Semua', en: 'All' },
+  'product.allSkin': { id: 'Semua Kulit', en: 'All Skin' },
+  'product.resultsCount': { id: 'produk ditemukan', en: 'products found' },
+  'product.noMatch': { id: 'Tidak ada produk yang cocok', en: 'No matching products' },
+  'product.howToUse': { id: 'Cara Pakai', en: 'How to Use' },
+  'product.suitableFor': { id: 'Cocok untuk', en: 'Suitable for' },
+  'product.helpsFor': { id: 'Membantu', en: 'Helps with' },
+
+  // ── Landing Page ──
+  'landing.badge': { id: 'AI-Powered Beauty Coach', en: 'AI-Powered Beauty Coach' },
+  'landing.heroTitle': { id: 'Jadi versi paling menarik dari', en: 'Become the most attractive version of' },
+  'landing.heroTitleHighlight': { id: 'dirimu', en: 'yourself' },
+  'landing.heroDesc': {
+    id: 'Personal beauty & body coach yang paham kulit dan tubuh kamu. Skincare routine, progress tracking, dan saran personal — semua dalam Bahasa Indonesia.',
+    en: 'Personal beauty & body coach that understands your skin and body. Skincare routines, progress tracking, and personalized advice — all in Bahasa Indonesia.',
+  },
+  'landing.ctaStart': { id: 'Mulai Sekarang', en: 'Get Started' },
+  'landing.ctaSignup': { id: 'Daftar Gratis', en: 'Sign Up Free' },
+  'landing.ctaLogin': { id: 'Masuk', en: 'Sign In' },
+  'landing.priceFrom': { id: 'Mulai dari Rp 59.000/bulan', en: 'Starting from Rp 59,000/month' },
+  'landing.whyPesona': { id: 'Kenapa Pesona?', en: 'Why Pesona?' },
+  'landing.whyDesc': {
+    id: 'Coach AI yang benar-benar paham kebutuhan kecantikan orang Indonesia.',
+    en: 'An AI coach that truly understands Indonesian beauty needs.',
+  },
+  'landing.feature1Title': { id: 'Skincare Routine Personal', en: 'Personal Skincare Routine' },
+  'landing.feature1Desc': {
+    id: 'Rutinitas pagi & malam yang disesuaikan dengan jenis kulit, masalah, dan budget kamu.',
+    en: 'Morning & evening routines customized to your skin type, concerns, and budget.',
+  },
+  'landing.feature2Title': { id: 'Foto Progress Tracking', en: 'Photo Progress Tracking' },
+  'landing.feature2Desc': {
+    id: 'Foto kulit kamu secara berkala dan lihat perubahan nyata dari waktu ke waktu.',
+    en: 'Track your skin with regular photos and see real changes over time.',
+  },
+  'landing.feature3Title': { id: 'AI Coach Bahasa Indonesia', en: 'AI Coach in Bahasa Indonesia' },
+  'landing.feature3Desc': {
+    id: 'Tanya apa saja soal skincare dalam Bahasa Indonesia. Paham produk lokal dan iklim tropis.',
+    en: 'Ask anything about skincare in Bahasa Indonesia. Understands local products and tropical climate.',
+  },
+  'landing.feature4Title': { id: 'Rekomendasi Produk Lokal', en: 'Local Product Recommendations' },
+  'landing.feature4Desc': {
+    id: 'Tau Skintific, Somethinc, Wardah, Glad2Glow, Kahf, dan produk Indonesia lainnya.',
+    en: 'Knows Skintific, Somethinc, Wardah, Glad2Glow, Kahf, and other Indonesian products.',
+  },
+  'landing.feature5Title': { id: 'Paham Iklim Tropis', en: 'Tropical Climate Aware' },
+  'landing.feature5Desc': {
+    id: 'Saran yang cocok untuk cuaca panas & lembap Indonesia, termasuk tips saat puasa Ramadan.',
+    en: 'Advice suited for Indonesia\'s hot & humid weather, including Ramadan fasting tips.',
+  },
+  'landing.feature6Title': { id: 'Skin Analysis dengan AI Vision', en: 'AI Vision Skin Analysis' },
+  'landing.feature6Desc': {
+    id: 'Upload foto wajah dan dapatkan analisis kondisi kulit serta rekomendasi perawatan.',
+    en: 'Upload a face photo and get skin condition analysis with treatment recommendations.',
+  },
+  'landing.howItWorks': { id: 'Cara Kerja Pesona', en: 'How Pesona Works' },
+  'landing.step1': { id: 'Jawab pertanyaan singkat tentang kulit kamu', en: 'Answer quick questions about your skin' },
+  'landing.step2': { id: 'AI buatkan skincare routine personal', en: 'AI creates your personal skincare routine' },
+  'landing.step3': { id: 'Tanya apa saja soal skincare ke AI coach', en: 'Ask the AI coach anything about skincare' },
+  'landing.step4': { id: 'Foto dan pantau perubahan kulit kamu', en: 'Track and monitor your skin changes' },
+  'landing.pricingTitle': { id: 'Mulai perjalanan kecantikanmu', en: 'Start your beauty journey' },
+  'landing.pricingDesc': {
+    id: 'Dapatkan skincare coach personal dengan harga kurang dari secangkir kopi per hari.',
+    en: 'Get a personal skincare coach for less than a cup of coffee per day.',
+  },
+  'landing.pricingStartFrom': { id: 'Mulai dari', en: 'Starting from' },
+  'landing.pricingPerMonth': { id: '/bulan', en: '/month' },
+  'landing.pricingFeature1': { id: 'Skincare routine personal', en: 'Personal skincare routine' },
+  'landing.pricingFeature2': { id: 'AI coach unlimited chat', en: 'Unlimited AI coach chat' },
+  'landing.pricingFeature3': { id: 'Foto progress tracking', en: 'Photo progress tracking' },
+  'landing.pricingFeature4': { id: 'Rekomendasi produk Indonesia', en: 'Indonesian product recommendations' },
+  'landing.faqTitle': { id: 'FAQ', en: 'FAQ' },
+  'landing.faq1q': { id: 'Apakah ini layanan medis?', en: 'Is this a medical service?' },
+  'landing.faq1a': {
+    id: 'Tidak. Pesona adalah produk wellness & coaching. Untuk masalah kulit serius, kami akan rekomendasikan kamu ke dokter kulit.',
+    en: 'No. Pesona is a wellness & coaching product. For serious skin concerns, we\'ll recommend you see a dermatologist.',
+  },
+  'landing.faq2q': { id: 'Apakah produk yang direkomendasikan halal?', en: 'Are recommended products halal?' },
+  'landing.faq2a': {
+    id: 'Kami menandai status halal dan BPOM setiap produk. Kamu bisa filter hanya produk halal saja.',
+    en: 'We mark halal and BPOM status for every product. You can filter to show only halal products.',
+  },
+  'landing.faq3q': { id: 'Berapa harganya?', en: 'How much does it cost?' },
+  'landing.faq3a': {
+    id: 'Mulai dari Rp 59.000/bulan untuk Plus. Ada juga tier Free dengan fitur terbatas.',
+    en: 'Starting from Rp 59,000/month for Plus. There is also a Free tier with limited features.',
+  },
+  'landing.faq4q': { id: 'Apakah AI coach bisa berbahasa Inggris?', en: 'Can the AI coach speak English?' },
+  'landing.faq4a': {
+    id: 'Ya! Sona bisa bicara dalam Bahasa Indonesia dan English. Dia akan menyesuaikan dengan bahasa kamu.',
+    en: 'Yes! Sona can speak both Bahasa Indonesia and English. She adapts to your language.',
+  },
+  'landing.disclaimer': {
+    id: 'Pesona adalah produk wellness, bukan layanan medis. Untuk masalah kulit serius, konsultasikan ke dokter kulit.',
+    en: 'Pesona is a wellness product, not a medical service. For serious skin concerns, consult a dermatologist.',
+  },
+
+  // ── Chat Welcome (hardcoded strings) ���─
+  'chat.welcomeTitle': { id: 'Halo, aku Sona!', en: 'Hi, I\'m Sona!' },
+  'chat.welcomeDesc': {
+    id: 'AI beauty coach kamu dari Pesona.io. Aku bisa bantu:',
+    en: 'Your AI beauty coach from Pesona.io. I can help with:',
+  },
+  'chat.welcomeRoutine': { id: 'Membuat skincare routine pagi & malam', en: 'Creating morning & evening skincare routines' },
+  'chat.welcomeProduct': { id: 'Rekomendasi produk sesuai jenis kulit kamu', en: 'Product recommendations for your skin type' },
+  'chat.welcomeAnalysis': { id: 'Analisis kondisi kulit dari foto', en: 'Analyzing skin condition from photos' },
+  'chat.welcomeTips': { id: 'Tips perawatan untuk iklim tropis Indonesia', en: 'Skincare tips for tropical Indonesian climate' },
+  'chat.routineMorning': { id: 'Routine Pagi', en: 'Morning Routine' },
+  'chat.routineEvening': { id: 'Routine Malam', en: 'Evening Routine' },
+
+  // ── Dashboard missing ──
+  'dashboard.noSkinProfile': { id: 'Belum ada profil kulit', en: 'No skin profile yet' },
 };

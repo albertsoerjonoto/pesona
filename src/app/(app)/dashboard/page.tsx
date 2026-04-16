@@ -191,7 +191,7 @@ export default function DashboardPage() {
             {skinProfile?.skin_type ? (
               <p className="text-xs text-text-secondary">{skinTypeLabel}</p>
             ) : (
-              <p className="text-xs text-text-tertiary">Belum ada profil kulit</p>
+              <p className="text-xs text-text-tertiary">{t('dashboard.noSkinProfile')}</p>
             )}
           </div>
         </div>
