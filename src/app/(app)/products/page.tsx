@@ -41,6 +41,7 @@ export default function ProductsPage() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ProductCategory | 'all'>('all');
   const [skinFilter, setSkinFilter] = useState<SkinType | 'all'>('all');
@@ -48,15 +49,21 @@ export default function ProductsPage() {
 
   useEffect(() => {
     const load = async () => {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('products')
-        .select('*')
-        .order('brand', { ascending: true })
-        .order('name', { ascending: true });
+      try {
+        const supabase = createClient();
+        const { data, error: queryError } = await supabase
+          .from('products')
+          .select('*')
+          .order('brand', { ascending: true })
+          .order('name', { ascending: true });
 
-      if (data) setProducts(data as unknown as Product[]);
-      setLoading(false);
+        if (queryError) throw queryError;
+        if (data) setProducts(data as unknown as Product[]);
+      } catch {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, []);
@@ -140,6 +147,17 @@ export default function ProductsPage() {
           {[1, 2, 3].map(i => (
             <div key={i} className="h-24 bg-surface rounded-xl animate-shimmer" />
           ))}
+        </div>
+      ) : error ? (
+        <div className="text-center py-12">
+          <div className="text-4xl mb-4">😵</div>
+          <p className="text-sm text-text-secondary mb-4">{t('product.loadError')}</p>
+          <button
+            onClick={() => { setError(false); setLoading(true); }}
+            className="px-6 py-2.5 bg-accent text-accent-fg font-medium rounded-xl hover:bg-accent-hover transition-all"
+          >
+            {t('error.retry')}
+          </button>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12">

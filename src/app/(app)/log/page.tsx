@@ -23,6 +23,8 @@ export default function LogPage() {
   const [morningLog, setMorningLog] = useState<RoutineLog | null>(null);
   const [eveningLog, setEveningLog] = useState<RoutineLog | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
   const currentRoutine = activeTab === 'morning' ? morningRoutine : eveningRoutine;
@@ -35,19 +37,25 @@ export default function LogPage() {
     fetchedRef.current = true;
 
     const load = async () => {
-      const supabase = createClient();
-      const [routinesRes, logsRes] = await Promise.all([
-        supabase.from('routines').select('*').eq('user_id', user.id).eq('active', true),
-        supabase.from('routine_logs').select('*').eq('user_id', user.id).eq('date', today),
-      ]);
+      try {
+        const supabase = createClient();
+        const [routinesRes, logsRes] = await Promise.all([
+          supabase.from('routines').select('*').eq('user_id', user.id).eq('active', true),
+          supabase.from('routine_logs').select('*').eq('user_id', user.id).eq('date', today),
+        ]);
 
-      const routines = routinesRes.data || [];
-      setMorningRoutine(routines.find((r: Routine) => r.type === 'morning') || null);
-      setEveningRoutine(routines.find((r: Routine) => r.type === 'evening') || null);
+        const routines = routinesRes.data || [];
+        setMorningRoutine(routines.find((r: Routine) => r.type === 'morning') || null);
+        setEveningRoutine(routines.find((r: Routine) => r.type === 'evening') || null);
 
-      const logs = logsRes.data || [];
-      setMorningLog(logs.find((l: RoutineLog) => l.type === 'morning') || null);
-      setEveningLog(logs.find((l: RoutineLog) => l.type === 'evening') || null);
+        const logs = logsRes.data || [];
+        setMorningLog(logs.find((l: RoutineLog) => l.type === 'morning') || null);
+        setEveningLog(logs.find((l: RoutineLog) => l.type === 'evening') || null);
+      } catch {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
     };
 
     load();
@@ -109,6 +117,35 @@ export default function LogPage() {
     };
     return icons[cat] || '🧴';
   };
+
+  if (loading) {
+    return (
+      <div className={cn('max-w-lg mx-auto px-4 pb-24 pt-6', isExpanded && 'lg:max-w-4xl lg:px-8')}>
+        <div className="h-8 w-32 bg-surface rounded-lg animate-shimmer mb-4" />
+        <div className="h-12 bg-surface rounded-xl animate-shimmer mb-4" />
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => (<div key={i} className="h-20 bg-surface rounded-2xl animate-shimmer" />))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={cn('max-w-lg mx-auto px-4 pb-24 pt-20 text-center', isExpanded && 'lg:max-w-4xl lg:px-8')}>
+        <div className="bg-surface rounded-2xl p-8">
+          <div className="text-4xl mb-4">😵</div>
+          <p className="text-sm text-text-secondary mb-4">{t('routine.loadError')}</p>
+          <button
+            onClick={() => { fetchedRef.current = false; setError(false); setLoading(true); }}
+            className="px-6 py-2.5 bg-accent text-accent-fg font-medium rounded-xl hover:bg-accent-hover transition-all"
+          >
+            {t('error.retry')}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn('max-w-lg mx-auto px-4 pb-24', isExpanded && 'lg:max-w-4xl lg:px-8')}>

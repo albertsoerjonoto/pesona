@@ -770,4 +770,37 @@ export const translations: Translations = {
 
   // ── Dashboard missing ──
   'dashboard.noSkinProfile': { id: 'Belum ada profil kulit', en: 'No skin profile yet' },
+  'dashboard.loadError': { id: 'Gagal memuat data. Coba lagi.', en: 'Failed to load data. Try again.' },
+
+  // ── Error & Not Found pages ──
+  'error.title': { id: 'Terjadi kesalahan', en: 'Something went wrong' },
+  'error.defaultMessage': { id: 'Terjadi kesalahan tak terduga. Silakan coba lagi.', en: 'An unexpected error occurred. Please try again.' },
+  'error.retry': { id: 'Coba Lagi', en: 'Try Again' },
+  'notFound.title': { id: 'Halaman tidak ditemukan', en: 'Page not found' },
+  'notFound.message': { id: 'Halaman yang kamu cari tidak ada.', en: "The page you're looking for doesn't exist." },
+  'notFound.goHome': { id: 'Ke Beranda', en: 'Go to Home' },
+
+  // ── Products page remaining ──
+  'product.category.all': { id: 'Semua', en: 'All' },
+  'product.category.cleanser': { id: 'Cleanser', en: 'Cleanser' },
+  'product.category.toner': { id: 'Toner', en: 'Toner' },
+  'product.category.serum': { id: 'Serum', en: 'Serum' },
+  'product.category.moisturizer': { id: 'Moisturizer', en: 'Moisturizer' },
+  'product.category.sunscreen': { id: 'Sunscreen', en: 'Sunscreen' },
+  'product.category.exfoliator': { id: 'Exfoliator', en: 'Exfoliator' },
+  'product.category.mask': { id: 'Mask', en: 'Mask' },
+  'product.category.spot_treatment': { id: 'Spot Treatment', en: 'Spot Treatment' },
+  'product.category.eye_cream': { id: 'Eye Cream', en: 'Eye Cream' },
+  'product.category.lip_care': { id: 'Lip Care', en: 'Lip Care' },
+  'product.skinFilter.all': { id: 'Semua Kulit', en: 'All Skin' },
+  'product.loadError': { id: 'Gagal memuat produk', en: 'Failed to load products' },
+
+  // ── Photo Progress remaining ──
+  'progress.photoTooBig': { id: 'Foto terlalu besar. Max 2MB.', en: 'Photo too large. Max 2MB.' },
+  'progress.uploadFailed': { id: 'Upload gagal. Coba lagi nanti.', en: 'Upload failed. Try again later.' },
+  'progress.uploadSuccess': { id: 'Foto berhasil diupload!', en: 'Photo uploaded successfully!' },
+  'progress.loadError': { id: 'Gagal memuat foto', en: 'Failed to load photos' },
+
+  // ── Routine log remaining ──
+  'routine.loadError': { id: 'Gagal memuat routine', en: 'Failed to load routine' },
 };

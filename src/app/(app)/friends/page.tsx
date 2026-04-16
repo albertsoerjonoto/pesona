@@ -48,7 +48,7 @@ export default function ProgressPage() {
 
     // Compress if needed
     if (file.size > 2 * 1024 * 1024) {
-      showToast('error', 'Foto terlalu besar. Max 2MB.');
+      showToast('error', t('progress.photoTooBig'));
       return;
     }
 
@@ -66,7 +66,7 @@ export default function ProgressPage() {
 
       if (uploadError) {
         // If bucket doesn't exist yet, show helpful message
-        showToast('error', 'Upload gagal. Coba lagi nanti.');
+        showToast('error', t('progress.uploadFailed'));
         setUploading(false);
         return;
       }
@@ -90,7 +90,7 @@ export default function ProgressPage() {
 
       if (photoData) {
         setPhotos(prev => [photoData as unknown as PhotoProgress, ...prev]);
-        showToast('success', 'Foto berhasil diupload! 📸');
+        showToast('success', t('progress.uploadSuccess') + ' 📸');
 
         // Mark daily check-in photo
         const today = new Date().toISOString().split('T')[0];
@@ -101,7 +101,7 @@ export default function ProgressPage() {
         }, { onConflict: 'user_id,date' });
       }
     } catch {
-      showToast('error', 'Upload gagal');
+      showToast('error', t('progress.uploadFailed'));
     }
 
     setUploading(false);

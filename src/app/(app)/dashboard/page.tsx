@@ -62,6 +62,8 @@ export default function DashboardPage() {
   const [todayCheckin, setTodayCheckin] = useState<DailyCheckin | null>(null);
   const [streakCount, setStreakCount] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -70,48 +72,54 @@ export default function DashboardPage() {
     fetchedRef.current = true;
 
     const load = async () => {
-      const supabase = createClient();
+      try {
+        const supabase = createClient();
 
-      const [profileRes, skinRes, routinesRes, logsRes, checkinRes] = await Promise.all([
-        supabase.from('profiles').select('display_name, skin_quiz_completed').eq('id', user.id).single(),
-        supabase.from('skin_profiles').select('*').eq('user_id', user.id).single(),
-        supabase.from('routines').select('*').eq('user_id', user.id).eq('active', true),
-        supabase.from('routine_logs').select('*').eq('user_id', user.id).eq('date', today),
-        supabase.from('daily_checkins').select('*').eq('user_id', user.id).eq('date', today).single(),
-      ]);
+        const [profileRes, skinRes, routinesRes, logsRes, checkinRes] = await Promise.all([
+          supabase.from('profiles').select('display_name, skin_quiz_completed').eq('id', user.id).single(),
+          supabase.from('skin_profiles').select('*').eq('user_id', user.id).single(),
+          supabase.from('routines').select('*').eq('user_id', user.id).eq('active', true),
+          supabase.from('routine_logs').select('*').eq('user_id', user.id).eq('date', today),
+          supabase.from('daily_checkins').select('*').eq('user_id', user.id).eq('date', today).single(),
+        ]);
 
-      if (profileRes.data) setProfile(profileRes.data);
-      if (skinRes.data) setSkinProfile(skinRes.data as unknown as SkinProfile);
+        if (profileRes.data) setProfile(profileRes.data);
+        if (skinRes.data) setSkinProfile(skinRes.data as unknown as SkinProfile);
 
-      const routines = routinesRes.data || [];
-      setMorningRoutine(routines.find((r: Routine) => r.type === 'morning') || null);
-      setEveningRoutine(routines.find((r: Routine) => r.type === 'evening') || null);
+        const routines = routinesRes.data || [];
+        setMorningRoutine(routines.find((r: Routine) => r.type === 'morning') || null);
+        setEveningRoutine(routines.find((r: Routine) => r.type === 'evening') || null);
 
-      const logs = logsRes.data || [];
-      setMorningLog(logs.find((l: RoutineLog) => l.type === 'morning') || null);
-      setEveningLog(logs.find((l: RoutineLog) => l.type === 'evening') || null);
+        const logs = logsRes.data || [];
+        setMorningLog(logs.find((l: RoutineLog) => l.type === 'morning') || null);
+        setEveningLog(logs.find((l: RoutineLog) => l.type === 'evening') || null);
 
-      if (checkinRes.data) setTodayCheckin(checkinRes.data as unknown as DailyCheckin);
+        if (checkinRes.data) setTodayCheckin(checkinRes.data as unknown as DailyCheckin);
 
-      // Calculate streak
-      const { data: streakData } = await supabase
-        .from('daily_checkins')
-        .select('date')
-        .eq('user_id', user.id)
-        .order('date', { ascending: false })
-        .limit(90);
+        // Calculate streak
+        const { data: streakData } = await supabase
+          .from('daily_checkins')
+          .select('date')
+          .eq('user_id', user.id)
+          .order('date', { ascending: false })
+          .limit(90);
 
-      if (streakData) {
-        let streak = 0;
-        const d = new Date();
-        for (const entry of streakData) {
-          const expected = d.toISOString().split('T')[0];
-          if (entry.date === expected) {
-            streak++;
-            d.setDate(d.getDate() - 1);
-          } else break;
+        if (streakData) {
+          let streak = 0;
+          const d = new Date();
+          for (const entry of streakData) {
+            const expected = d.toISOString().split('T')[0];
+            if (entry.date === expected) {
+              streak++;
+              d.setDate(d.getDate() - 1);
+            } else break;
+          }
+          setStreakCount(streak);
         }
-        setStreakCount(streak);
+      } catch {
+        setError(true);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -160,6 +168,37 @@ export default function DashboardPage() {
 
   const skinTypeLabel = skinProfile?.skin_type ? t(`skin.type.${skinProfile.skin_type}`) : '';
   const concernLabels = (skinProfile?.concerns || []).map(c => t(`skin.concern.${c}`));
+
+  if (loading) {
+    return (
+      <div className={cn('max-w-lg mx-auto px-4 pb-24 pt-6', isExpanded && 'lg:max-w-4xl lg:px-8')}>
+        <div className="space-y-4">
+          <div className="h-8 w-48 bg-surface rounded-lg animate-shimmer" />
+          <div className="h-32 bg-surface rounded-2xl animate-shimmer" />
+          <div className="h-40 bg-surface rounded-2xl animate-shimmer" />
+          <div className="h-24 bg-surface rounded-2xl animate-shimmer" />
+          <div className="h-20 bg-surface rounded-2xl animate-shimmer" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={cn('max-w-lg mx-auto px-4 pb-24 pt-20 text-center', isExpanded && 'lg:max-w-4xl lg:px-8')}>
+        <div className="bg-surface rounded-2xl p-8">
+          <div className="text-4xl mb-4">😵</div>
+          <p className="text-sm text-text-secondary mb-4">{t('dashboard.loadError')}</p>
+          <button
+            onClick={() => { fetchedRef.current = false; setError(false); setLoading(true); }}
+            className="px-6 py-2.5 bg-accent text-accent-fg font-medium rounded-xl hover:bg-accent-hover transition-all"
+          >
+            {t('error.retry')}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn('max-w-lg mx-auto px-4 pb-24', isExpanded && 'lg:max-w-4xl lg:px-8')}>
