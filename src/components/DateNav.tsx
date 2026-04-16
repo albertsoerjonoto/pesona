@@ -1,0 +1,123 @@
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
+import {
+  formatDisplayDate,
+  formatWeekLabel,
+  formatMonthLabel,
+  formatYearLabel,
+  navigateByPeriod,
+  getToday,
+} from '@/lib/utils';
+import type { Period } from '@/lib/utils';
+import { useLocale } from '@/lib/i18n';
+
+interface DateNavProps {
+  date: string;
+  onDateChange: (date: string) => void;
+  period?: Period;
+  onPeriodChange?: (period: Period) => void;
+  showPeriodPicker?: boolean;
+  allowFuture?: boolean;
+}
+
+export default function DateNav({
+  date,
+  onDateChange,
+  period = 'day',
+  onPeriodChange,
+  showPeriodPicker = false,
+  allowFuture = false,
+}: DateNavProps) {
+  const { t, locale } = useLocale();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const periods: { value: Period; labelKey: string }[] = [
+    { value: 'day', labelKey: 'date.day' },
+    { value: 'week', labelKey: 'date.week' },
+    { value: 'month', labelKey: 'date.month' },
+    { value: 'year', labelKey: 'date.year' },
+  ];
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  function getLabel(dateStr: string, p: Period): string {
+    switch (p) {
+      case 'day': return formatDisplayDate(dateStr, locale);
+      case 'week': return formatWeekLabel(dateStr, locale);
+      case 'month': return formatMonthLabel(dateStr, locale);
+      case 'year': return formatYearLabel(dateStr);
+    }
+  }
+
+  const label = getLabel(date, period);
+  const today = getToday();
+  const nextDate = navigateByPeriod(date, period, 1);
+  const isNextDisabled = !allowFuture && nextDate > today;
+
+  return (
+    <div className="flex items-center gap-0.5" ref={ref}>
+      <button
+        onClick={() => onDateChange(navigateByPeriod(date, period, -1))}
+        className="p-1.5 rounded-lg hover:bg-surface-hover transition-all active:scale-[0.95]"
+        aria-label={`Previous ${period}`}
+      >
+        <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
+      </button>
+
+      <div className="relative">
+        <button
+          onClick={() => showPeriodPicker && setOpen(!open)}
+          className={`text-sm font-medium text-text-primary px-1.5 py-0.5 rounded-lg transition-all ${
+            showPeriodPicker ? 'hover:bg-surface-hover active:scale-[0.97]' : ''
+          }`}
+        >
+          {label}
+        </button>
+
+        {open && (
+          <div className="absolute top-full right-0 mt-1 bg-surface rounded-xl shadow-lg py-1 z-50 min-w-[100px]">
+            {periods.map((p) => (
+              <button
+                key={p.value}
+                onClick={() => {
+                  onPeriodChange?.(p.value);
+                  onDateChange(getToday());
+                  setOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2 text-sm transition-all ${
+                  period === p.value
+                    ? 'text-accent font-medium bg-accent/10'
+                    : 'text-text-primary hover:bg-surface-hover'
+                }`}
+              >
+                {t(p.labelKey)}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={() => !isNextDisabled && onDateChange(nextDate)}
+        disabled={isNextDisabled}
+        className={`p-1.5 rounded-lg transition-all active:scale-[0.95] ${isNextDisabled ? 'opacity-30 cursor-not-allowed' : 'hover:bg-surface-hover'}`}
+        aria-label={`Next ${period}`}
+      >
+        <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+        </svg>
+      </button>
+    </div>
+  );
+}
