@@ -1,3 +1,139 @@
+// ── Pesona skincare types ──
+
+export type SkinType = 'oily' | 'dry' | 'combination' | 'sensitive' | 'normal';
+export type SkinConcern = 'acne' | 'dark_spots' | 'dullness' | 'large_pores' | 'blackheads' | 'redness' | 'rough_texture' | 'aging';
+export type SkinGoal = 'glowing' | 'clear' | 'even_tone' | 'hydrated' | 'anti_aging' | 'small_pores';
+export type SensitivityLevel = 'none' | 'mild' | 'moderate' | 'severe';
+export type BudgetRange = 'under_100k' | '100k_300k' | '300k_500k' | 'over_500k';
+export type RoutineType = 'morning' | 'evening';
+export type ProductCategory = 'cleanser' | 'toner' | 'serum' | 'moisturizer' | 'sunscreen' | 'exfoliator' | 'mask' | 'eye_cream' | 'lip_care' | 'spot_treatment' | 'body_lotion' | 'other';
+export type PhotoType = 'skin_face_front' | 'skin_face_left' | 'skin_face_right' | 'body_front' | 'body_side';
+export type SkinFeeling = 'great' | 'good' | 'okay' | 'bad' | 'terrible';
+export type RoutineGeneratedBy = 'ai' | 'manual';
+
+export interface SkinProfile {
+  id: string;
+  user_id: string;
+  skin_type: SkinType | null;
+  concerns: SkinConcern[];
+  skin_goals: SkinGoal[];
+  sensitivity_level: SensitivityLevel;
+  hijab_wearer: boolean;
+  budget_range: BudgetRange;
+  onboarding_photo_url: string | null;
+  ai_skin_analysis: Record<string, unknown> | null;
+  quiz_completed: boolean;
+  quiz_answers: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoutineStep {
+  step_number: number;
+  category: ProductCategory;
+  product_name: string;
+  product_brand: string;
+  product_id?: string;
+  instruction: string;
+  duration_seconds?: number;
+}
+
+export interface Routine {
+  id: string;
+  user_id: string;
+  type: RoutineType;
+  steps: RoutineStep[];
+  generated_by: RoutineGeneratedBy;
+  active: boolean;
+  ai_reasoning: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoutineLog {
+  id: string;
+  user_id: string;
+  routine_id: string | null;
+  type: RoutineType;
+  date: string;
+  completed_steps: number[];
+  completed: boolean;
+  completion_percentage: number;
+  created_at: string;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  brand: string;
+  category: ProductCategory;
+  suitable_skin_types: SkinType[];
+  addresses_concerns: SkinConcern[];
+  key_ingredients: string[];
+  price_idr: number | null;
+  shopee_url: string | null;
+  tiktok_shop_url: string | null;
+  tokopedia_url: string | null;
+  image_url: string | null;
+  bpom_registered: boolean;
+  halal_certified: boolean;
+  description: string | null;
+  how_to_use: string | null;
+  rating_avg: number;
+  created_at: string;
+}
+
+export interface PhotoProgress {
+  id: string;
+  user_id: string;
+  photo_url: string;
+  photo_type: PhotoType;
+  ai_analysis: Record<string, unknown> | null;
+  notes: string | null;
+  taken_at: string;
+  created_at: string;
+}
+
+export interface DailyCheckin {
+  id: string;
+  user_id: string;
+  date: string;
+  morning_routine_done: boolean;
+  evening_routine_done: boolean;
+  photo_uploaded: boolean;
+  skin_feeling: SkinFeeling | null;
+  notes: string | null;
+  streak_count: number;
+  created_at: string;
+}
+
+export interface AIMessage {
+  id: string;
+  user_id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  metadata: Record<string, unknown>;
+  image_url: string | null;
+  created_at: string;
+}
+
+export interface CoachResponse {
+  message: string;
+  routine_suggestion?: {
+    type: RoutineType;
+    steps: RoutineStep[];
+  } | null;
+  product_recommendations?: {
+    name: string;
+    brand: string;
+    reason: string;
+    product_id?: string;
+  }[] | null;
+  daily_tip?: string | null;
+}
+
+// ── Legacy Rajin types (kept for compatibility) ──
+
 export type Frequency = 'daily' | 'weekly';
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type DrinkType = 'water' | 'coffee' | 'tea' | 'juice' | 'soda' | 'milk' | 'smoothie' | 'other';

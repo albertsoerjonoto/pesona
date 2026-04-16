@@ -46,6 +46,11 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Allow landing page through without auth
+  if (!user && request.nextUrl.pathname === '/') {
+    return supabaseResponse;
+  }
+
   // Redirect unauthenticated users to login (except auth pages)
   if (
     !user &&

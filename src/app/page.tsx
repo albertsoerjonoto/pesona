@@ -32,7 +32,7 @@ export default function LandingPage() {
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-tight">
             Jadi versi paling menarik dari{' '}
-            <span className="bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[#CE3D66] to-[#8B5CF6] bg-clip-text text-transparent">
               dirimu
             </span>
           </h1>
