@@ -16,7 +16,8 @@ export default function LogPage() {
   const { isExpanded } = useDesktopLayout();
   const fetchedRef = useRef(false);
 
-  const [activeTab, setActiveTab] = useState<'morning' | 'evening'>('morning');
+  const initialTab = () => new Date().getHours() >= 17 ? 'evening' as const : 'morning' as const;
+  const [activeTab, setActiveTab] = useState<'morning' | 'evening'>(initialTab);
   const [morningRoutine, setMorningRoutine] = useState<Routine | null>(null);
   const [eveningRoutine, setEveningRoutine] = useState<Routine | null>(null);
   const [morningLog, setMorningLog] = useState<RoutineLog | null>(null);
@@ -28,12 +29,6 @@ export default function LogPage() {
   const currentLog = activeTab === 'morning' ? morningLog : eveningLog;
   const steps = (currentRoutine?.steps || []) as RoutineStep[];
   const completedSteps = ((currentLog?.completed_steps || []) as number[]);
-
-  // Auto-select tab based on time of day
-  useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour >= 17) setActiveTab('evening');
-  }, []);
 
   useEffect(() => {
     if (!user || fetchedRef.current) return;

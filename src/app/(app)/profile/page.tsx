@@ -382,6 +382,29 @@ export default function ProfilePage() {
             )}
           </div>
 
+          {/* Skin Profile Card */}
+          <div className="bg-surface rounded-2xl p-4 mb-4 border border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-accent-surface rounded-xl flex items-center justify-center">
+                  <span className="text-lg">🧴</span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-text-primary">{t('dashboard.skinProfile')}</h3>
+                  <p className="text-xs text-text-tertiary">
+                    {profile.skin_quiz_completed ? t('dashboard.editSkinProfile') : t('dashboard.startQuiz')}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push('/onboarding')}
+                className="px-3 py-1.5 bg-accent text-accent-fg text-xs font-medium rounded-lg hover:bg-accent-hover transition-all"
+              >
+                {profile.skin_quiz_completed ? t('common.edit') : t('common.getStarted')}
+              </button>
+            </div>
+          </div>
+
           {/* Language section */}
           <p className="text-xs font-medium text-text-tertiary uppercase tracking-wider px-1 mt-4 mb-2">{t('profile.language')}</p>
           <div className="bg-surface rounded-2xl overflow-hidden">

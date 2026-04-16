@@ -125,11 +125,15 @@ export default function DashboardPage() {
     return t('dashboard.greeting.evening');
   };
 
+  const [dailyTipIndex] = useState(() => {
+    const now = Date.now();
+    return Math.floor((now - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+  });
+
   const getDailyTip = () => {
-    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
-    if (skinProfile?.skin_type === 'oily') return SKIN_TIPS_OILY[dayOfYear % SKIN_TIPS_OILY.length];
-    if (skinProfile?.skin_type === 'dry') return SKIN_TIPS_DRY[dayOfYear % SKIN_TIPS_DRY.length];
-    return SKIN_TIPS_GENERAL[dayOfYear % SKIN_TIPS_GENERAL.length];
+    if (skinProfile?.skin_type === 'oily') return SKIN_TIPS_OILY[dailyTipIndex % SKIN_TIPS_OILY.length];
+    if (skinProfile?.skin_type === 'dry') return SKIN_TIPS_DRY[dailyTipIndex % SKIN_TIPS_DRY.length];
+    return SKIN_TIPS_GENERAL[dailyTipIndex % SKIN_TIPS_GENERAL.length];
   };
 
   const handleCheckin = async (feeling: SkinFeeling) => {

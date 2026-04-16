@@ -162,6 +162,7 @@ export interface Profile {
   daily_water_goal_ml: number;
   locale: Locale;
   desktop_layout: DesktopLayout;
+  skin_quiz_completed: boolean;
   created_at: string;
 }
 
