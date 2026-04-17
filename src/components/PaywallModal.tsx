@@ -13,6 +13,7 @@ interface PaywallModalProps {
 
 const PLUS = TIER_CONFIG.plus;
 const PRO = TIER_CONFIG.pro;
+const ELITE = TIER_CONFIG.elite;
 
 const PLUS_FEATURES = [
   'Unlimited chat AI coach',
@@ -25,6 +26,13 @@ const PRO_FEATURES = [
   'Analisis kulit advanced',
   'Prioritas respons',
   'Beauty lengkap (rambut, makeup, tubuh)',
+];
+
+const ELITE_FEATURES = [
+  'Semua fitur Pro +',
+  '1× video consult dermatologist/bulan',
+  'Prioritas booking Haloskin',
+  'Akses ke PERDOSKI partner network',
 ];
 
 export default function PaywallModal({ open, onClose, trigger }: PaywallModalProps) {
@@ -43,7 +51,7 @@ export default function PaywallModal({ open, onClose, trigger }: PaywallModalPro
     onClose();
   };
 
-  const handleSelect = (tier: 'plus' | 'pro') => {
+  const handleSelect = (tier: 'plus' | 'pro' | 'elite') => {
     router.push(`/subscription/checkout?tier=${tier}`);
   };
 
@@ -144,6 +152,40 @@ export default function PaywallModal({ open, onClose, trigger }: PaywallModalPro
               className="w-full py-2.5 bg-accent hover:bg-accent-hover text-accent-fg font-medium rounded-xl transition-all active:scale-[0.98]"
             >
               Pilih Pro
+            </button>
+          </div>
+
+          {/* Elite card — Pesona Glow, includes monthly derm consult per spec §10.1 */}
+          <div className="border border-border rounded-2xl p-4 bg-bg relative">
+            <div className="absolute -top-3 left-4 px-2.5 py-0.5 bg-text-primary text-bg text-xs font-semibold rounded-full">
+              Konsultasi Dokter
+            </div>
+            <div className="flex items-center justify-between mb-3 mt-1">
+              <div>
+                <h3 className="text-base font-semibold text-text-primary">{ELITE.nameBahasa}</h3>
+                <p className="text-sm text-accent font-bold">
+                  {formatPriceIDR(ELITE.price_idr)}<span className="text-xs text-text-tertiary font-normal">/bln</span>
+                </p>
+              </div>
+              <div className="w-10 h-10 bg-accent-surface rounded-xl flex items-center justify-center">
+                <span className="text-lg">👑</span>
+              </div>
+            </div>
+            <ul className="space-y-1.5 mb-4">
+              {ELITE_FEATURES.map((f) => (
+                <li key={f} className="flex items-start gap-2 text-sm text-text-secondary">
+                  <svg className="w-4 h-4 text-positive mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={() => handleSelect('elite')}
+              className="w-full py-2.5 bg-surface-hover hover:bg-surface text-text-primary border border-border-strong font-medium rounded-xl transition-all active:scale-[0.98]"
+            >
+              Pilih Glow
             </button>
           </div>
         </div>
