@@ -69,7 +69,8 @@ describe('Dashboard Page', () => {
   it('renders photo progress button', async () => {
     renderWithProviders(<DashboardPage />);
     await waitFor(() => {
-      expect(screen.getByText('📸')).toBeInTheDocument();
+      // Merged code adds weekly photo CTA; there can be multiple 📸 icons now
+      expect(screen.getAllByText('📸').length).toBeGreaterThanOrEqual(1);
     });
   });
 

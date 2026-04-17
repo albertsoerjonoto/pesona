@@ -25,8 +25,16 @@ export default function LogPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [calendarData, setCalendarData] = useState<Record<string, { morning: boolean; evening: boolean }>>({});
 
-  const today = new Date().toISOString().split('T')[0];
+  // Use local date (matches DB date column storage and calendar cells)
+  const today = (() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  })();
   const currentRoutine = activeTab === 'morning' ? morningRoutine : eveningRoutine;
   const currentLog = activeTab === 'morning' ? morningLog : eveningLog;
   const steps = (currentRoutine?.steps || []) as RoutineStep[];
@@ -50,6 +58,26 @@ export default function LogPage() {
       const logs = logsRes.data || [];
       setMorningLog(logs.find((l: RoutineLog) => l.type === 'morning') || null);
       setEveningLog(logs.find((l: RoutineLog) => l.type === 'evening') || null);
+
+      // Load 30-day calendar data
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const { data: calLogs } = await supabase
+        .from('routine_logs')
+        .select('date, type, completed')
+        .eq('user_id', user.id)
+        .gte('date', thirtyDaysAgo.toISOString().split('T')[0])
+        .eq('completed', true);
+
+      if (calLogs) {
+        const cal: Record<string, { morning: boolean; evening: boolean }> = {};
+        for (const log of calLogs) {
+          if (!cal[log.date]) cal[log.date] = { morning: false, evening: false };
+          if (log.type === 'morning') cal[log.date].morning = true;
+          if (log.type === 'evening') cal[log.date].evening = true;
+        }
+        setCalendarData(cal);
+      }
     } catch {
       setError(true);
     } finally {
@@ -275,6 +303,84 @@ export default function LogPage() {
           </button>
         </div>
       )}
+
+      {/* 30-Day Calendar Grid */}
+      <div className="mt-8">
+        <h3 className="text-sm font-semibold text-text-primary mb-3">30 Hari Terakhir</h3>
+        <div className="grid grid-cols-7 gap-1.5">
+          {/* Day labels */}
+          {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map(d => (
+            <div key={d} className="text-[9px] text-text-muted text-center font-medium">{d}</div>
+          ))}
+
+          {/* Calendar cells */}
+          {(() => {
+            const cells = [];
+            const now = new Date();
+            // Helper: local date to YYYY-MM-DD string (consistent with DB)
+            const toLocalDateStr = (d: Date) => {
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              return `${y}-${m}-${day}`;
+            };
+            // Start from 30 days ago, aligned to Monday
+            const start = new Date(now);
+            start.setDate(start.getDate() - 29);
+            // Align to start of week (Monday = 1)
+            const dayOfWeek = start.getDay();
+            const alignOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            start.setDate(start.getDate() - alignOffset);
+
+            const endDate = new Date(now);
+            const endDayOfWeek = now.getDay();
+            endDate.setDate(endDate.getDate() + (7 - (endDayOfWeek === 0 ? 7 : endDayOfWeek)));
+
+            const cursor = new Date(start);
+            while (cursor <= endDate) {
+              const dateStr = toLocalDateStr(cursor);
+              const cal = calendarData[dateStr];
+              const isFuture = cursor > now;
+              const isToday = dateStr === today;
+              const bothDone = cal?.morning && cal?.evening;
+              const oneDone = cal?.morning || cal?.evening;
+
+              cells.push(
+                <div
+                  key={dateStr}
+                  className={cn(
+                    'aspect-square rounded-lg flex items-center justify-center text-[10px] font-medium transition-all',
+                    isFuture && 'opacity-20',
+                    isToday && 'ring-1 ring-accent',
+                    bothDone && 'bg-positive text-white',
+                    oneDone && !bothDone && 'bg-positive/40 text-positive-text',
+                    !oneDone && !isFuture && 'bg-surface-secondary text-text-muted',
+                  )}
+                  title={`${dateStr}${cal?.morning ? ' ☀️' : ''}${cal?.evening ? ' 🌙' : ''}`}
+                >
+                  {cursor.getDate()}
+                </div>
+              );
+              cursor.setDate(cursor.getDate() + 1);
+            }
+            return cells;
+          })()}
+        </div>
+        <div className="flex items-center gap-4 mt-3 justify-center">
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded bg-positive" />
+            <span className="text-[9px] text-text-tertiary">Pagi + Malam</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded bg-positive/40" />
+            <span className="text-[9px] text-text-tertiary">Salah satu</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded bg-surface-secondary" />
+            <span className="text-[9px] text-text-tertiary">Belum</span>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

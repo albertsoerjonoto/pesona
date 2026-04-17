@@ -3,41 +3,47 @@ import { render, type RenderOptions } from '@testing-library/react';
 import { LocaleProvider } from '@/lib/i18n/context';
 
 /**
- * Mock Supabase client that returns empty/null data by default.
- * Override in individual tests via vi.mocked().
+ * Proxy-style mock Supabase query builder — chainable and always resolves
+ * with empty/null data. Any method call returns the same proxy, so all
+ * .eq().order().limit().single() chains terminate successfully.
+ *
+ * Terminal methods (single, maybeSingle, limit, then) return a Promise.
+ * Builder methods (select, eq, neq, not, gte, order, etc.) return the proxy.
+ */
+function createQueryBuilder(defaultData: unknown = null) {
+  const builder: Record<string, unknown> = {};
+
+  const terminalMethods = new Set(['single', 'maybeSingle']);
+
+  const chainableMethods = [
+    'select', 'insert', 'update', 'upsert', 'delete',
+    'eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'ilike',
+    'is', 'in', 'contains', 'not', 'or', 'filter',
+    'order', 'limit', 'range', 'offset',
+  ];
+
+  for (const method of chainableMethods) {
+    builder[method] = vi.fn(() => builder);
+  }
+
+  for (const method of terminalMethods) {
+    builder[method] = vi.fn(() =>
+      Promise.resolve({ data: defaultData, error: null })
+    );
+  }
+
+  // Make the builder thenable so `await query` works at any point
+  builder.then = (resolve: (value: { data: unknown; error: null }) => unknown) =>
+    resolve({ data: Array.isArray(defaultData) ? defaultData : [], error: null });
+
+  return builder;
+}
+
+/**
+ * Mock Supabase client — default: all reads return empty.
  */
 export const mockSupabaseClient = {
-  from: vi.fn(() => ({
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn(() => Promise.resolve({ data: null, error: null })),
-          limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
-          order: vi.fn(() => ({
-            limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
-          })),
-        })),
-        order: vi.fn(() => ({
-          order: vi.fn(() => Promise.resolve({ data: [], error: null })),
-          limit: vi.fn(() => Promise.resolve({ data: [], error: null })),
-        })),
-        single: vi.fn(() => Promise.resolve({ data: null, error: null })),
-      })),
-      order: vi.fn(() => ({
-        order: vi.fn(() => Promise.resolve({ data: [], error: null })),
-      })),
-    })),
-    upsert: vi.fn(() => ({
-      select: vi.fn(() => ({
-        single: vi.fn(() => Promise.resolve({ data: null, error: null })),
-      })),
-    })),
-    insert: vi.fn(() => ({
-      select: vi.fn(() => ({
-        single: vi.fn(() => Promise.resolve({ data: null, error: null })),
-      })),
-    })),
-  })),
+  from: vi.fn(() => createQueryBuilder()),
   storage: {
     from: vi.fn(() => ({
       upload: vi.fn(() => Promise.resolve({ error: null })),
@@ -48,6 +54,7 @@ export const mockSupabaseClient = {
     getUser: vi.fn(() => Promise.resolve({ data: { user: null }, error: null })),
     onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
   },
+  rpc: vi.fn(() => Promise.resolve({ data: null, error: null })),
 };
 
 // Mock Supabase client module

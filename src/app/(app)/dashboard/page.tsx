@@ -64,6 +64,8 @@ export default function DashboardPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [latestScore, setLatestScore] = useState<number | null>(null);
+  const [lastPhotoDate, setLastPhotoDate] = useState<string | null>(null);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -94,6 +96,34 @@ export default function DashboardPage() {
       setEveningLog(logs.find((l: RoutineLog) => l.type === 'evening') || null);
 
       if (checkinRes.data) setTodayCheckin(checkinRes.data as unknown as DailyCheckin);
+
+      // Get latest skin score from photo analysis
+      const { data: latestPhoto } = await supabase
+        .from('photo_progress')
+        .select('ai_analysis, taken_at')
+        .eq('user_id', user.id)
+        .not('ai_analysis', 'is', null)
+        .order('taken_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (latestPhoto?.ai_analysis && typeof latestPhoto.ai_analysis === 'object') {
+        const analysis = latestPhoto.ai_analysis as Record<string, unknown>;
+        if (typeof analysis.overall_score === 'number') {
+          setLatestScore(Math.min(100, Math.max(0, analysis.overall_score)));
+        }
+        setLastPhotoDate(latestPhoto.taken_at);
+      } else {
+        // Check if there are any photos at all
+        const { data: anyPhoto } = await supabase
+          .from('photo_progress')
+          .select('taken_at')
+          .eq('user_id', user.id)
+          .order('taken_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (anyPhoto) setLastPhotoDate(anyPhoto.taken_at);
+      }
 
       // Calculate streak
       const { data: streakData } = await supabase
@@ -261,6 +291,67 @@ export default function DashboardPage() {
           </button>
         )}
       </div>
+
+      {/* Skin Score */}
+      {latestScore !== null && (
+        <div className="bg-surface rounded-2xl p-5 mb-4 border border-border">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-text-primary">Skor Kulit Kamu</h2>
+            {lastPhotoDate && (
+              <span className="text-[10px] text-text-tertiary">
+                Update: {new Date(lastPhotoDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="relative w-16 h-16">
+              <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+                <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none" stroke="currentColor" strokeWidth="3" className="text-surface-secondary" />
+                <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray={`${latestScore}, 100`}
+                  className={latestScore >= 70 ? 'text-positive' : latestScore >= 40 ? 'text-warning' : 'text-danger'} />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-text-primary">{latestScore}</span>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-text-secondary">
+                {latestScore >= 70 ? 'Kulit kamu lagi bagus! Keep up the routine ✨' :
+                 latestScore >= 40 ? 'Cukup baik! Konsistensi routine bikin makin bagus' :
+                 'Yuk tingkatkan dengan routine yang konsisten 💪'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Weekly Photo CTA */}
+      {(() => {
+        const daysSincePhoto = lastPhotoDate
+          ? Math.floor((Date.now() - new Date(lastPhotoDate).getTime()) / 86400000)
+          : null;
+        if (daysSincePhoto === null || daysSincePhoto >= 7) {
+          return (
+            <button
+              onClick={() => router.push('/friends')}
+              className="w-full bg-accent/10 border border-accent/30 rounded-2xl p-4 mb-4 flex items-center gap-3 hover:bg-accent/20 transition-all active:scale-[0.99]"
+            >
+              <span className="text-2xl">📸</span>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-semibold text-accent-text">Upload foto mingguan</p>
+                <p className="text-xs text-text-tertiary">
+                  {daysSincePhoto === null ? 'Ambil foto pertamamu untuk tracking' :
+                   `Sudah ${daysSincePhoto} hari sejak foto terakhir`}
+                </p>
+              </div>
+              <svg className="w-4 h-4 text-accent-text" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+          );
+        }
+        return null;
+      })()}
 
       {/* Today's Routines */}
       <div className="bg-surface rounded-2xl p-5 mb-4 border border-border">
