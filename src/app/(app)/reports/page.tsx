@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useDesktopLayout } from '@/hooks/useDesktopLayout';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { cn } from '@/lib/utils';
 
 interface WeeklyReport {
@@ -28,6 +29,13 @@ interface WeeklyReport {
     routine_adjustment?: string | null;
     motivation?: string;
   } | null;
+  photo_timeline?: Array<{
+    date: string;
+    overall: number;
+    brightness: number;
+    texture: number;
+    hydration: number;
+  }>;
 }
 
 const FEELING_EMOJI: Record<string, string> = {
@@ -38,10 +46,46 @@ export default function ReportsPage() {
   const { user } = useAuth();
   const { isExpanded } = useDesktopLayout();
   const fetchedRef = useRef(false);
+  const shareCardRef = useRef<HTMLDivElement>(null);
 
   const [report, setReport] = useState<WeeklyReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+
+  const handleShare = async () => {
+    if (!shareCardRef.current || sharing) return;
+    setSharing(true);
+    try {
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(shareCardRef.current, {
+        pixelRatio: 2,
+        backgroundColor: '#CE3D66',
+      });
+
+      if (navigator.share && navigator.canShare) {
+        const blob = await (await fetch(dataUrl)).blob();
+        const file = new File([blob], 'pesona-weekly-report.png', { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Laporan mingguan Pesona',
+            text: 'Lihat progress kulit kamu minggu ini!',
+          });
+          setSharing(false);
+          return;
+        }
+      }
+
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = 'pesona-weekly-report.png';
+      a.click();
+    } catch {
+      // Fail silently — screenshot is best-effort
+    }
+    setSharing(false);
+  };
 
   useEffect(() => {
     if (!user || fetchedRef.current) return;
@@ -159,6 +203,100 @@ export default function ReportsPage() {
           <DeltaIndicator label="Hidrasi" delta={report.score_changes.hydration.delta} value={report.score_changes.hydration.end} />
         </div>
       )}
+
+      {/* Line Chart: Photo timeline */}
+      {report.photo_timeline && report.photo_timeline.length >= 2 && (
+        <div className="bg-surface rounded-xl p-4 border border-border mb-4">
+          <h3 className="text-sm font-semibold text-text-primary mb-3">Tren Kulit Minggu Ini</h3>
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={report.photo_timeline.map(p => ({ ...p, day: formatDate(p.date) }))}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--c-border)" opacity={0.3} />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'var(--c-text-tertiary)' }} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: 'var(--c-text-tertiary)' }} width={24} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'var(--c-surface)',
+                    border: '1px solid var(--c-border)',
+                    borderRadius: 8,
+                    fontSize: 11,
+                  }}
+                />
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+                <Line type="monotone" dataKey="overall" name="Keseluruhan" stroke="#CE3D66" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="brightness" name="Kecerahan" stroke="#F59E0B" strokeWidth={1.5} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="texture" name="Tekstur" stroke="#10B981" strokeWidth={1.5} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="hydration" name="Hidrasi" stroke="#3B82F6" strokeWidth={1.5} dot={{ r: 2 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* Shareable card (hidden off-screen for export) */}
+      <div style={{ position: 'fixed', left: '-9999px', top: 0, width: 400 }}>
+        <div
+          ref={shareCardRef}
+          className="p-6 text-white"
+          style={{
+            background: 'linear-gradient(135deg, #CE3D66 0%, #E0527A 50%, #F59FBE 100%)',
+            fontFamily: 'sans-serif',
+          }}
+        >
+          <div className="text-xs opacity-75 mb-1">pesona.io</div>
+          <div className="text-xl font-black mb-1">Laporan Minggu Ini</div>
+          <div className="text-xs opacity-90 mb-4">{formatDate(report.period.start)} — {formatDate(report.period.end)}</div>
+
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="bg-white/20 rounded-lg p-2 text-center">
+              <div className="text-2xl font-bold">{m.days_checked_in}/7</div>
+              <div className="text-[10px] opacity-90">Hari check-in</div>
+            </div>
+            <div className="bg-white/20 rounded-lg p-2 text-center">
+              <div className="text-2xl font-bold">{m.routine_completion_rate}%</div>
+              <div className="text-[10px] opacity-90">Completion</div>
+            </div>
+          </div>
+
+          {report.score_changes && (
+            <div className="space-y-1.5 mb-4">
+              {(['overall', 'brightness', 'texture', 'hydration'] as const).map(k => {
+                const c = report.score_changes![k];
+                const label = { overall: 'Keseluruhan', brightness: 'Kecerahan', texture: 'Tekstur', hydration: 'Hidrasi' }[k];
+                return (
+                  <div key={k} className="flex items-center justify-between text-xs">
+                    <span className="opacity-90">{label}</span>
+                    <span className="font-bold">
+                      {c.end}
+                      <span className="ml-2 opacity-75">
+                        {c.delta > 0 ? '+' : ''}{c.delta}
+                      </span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="text-[10px] opacity-75 text-center border-t border-white/30 pt-2">
+            AI Beauty Coach kamu
+          </div>
+        </div>
+      </div>
+
+      {/* Share button */}
+      <button
+        onClick={handleShare}
+        disabled={sharing}
+        className="w-full py-3 mb-4 bg-gradient-to-r from-accent to-pink-400 text-white font-semibold rounded-xl hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+      >
+        {sharing ? 'Membuat gambar...' : (
+          <>
+            <span>📷</span>
+            Bagikan ke Instagram
+          </>
+        )}
+      </button>
 
       {/* AI Report */}
       {report.ai_report && (

@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/Toast';
+import PhotoUpload from '@/components/PhotoUpload';
 import { cn } from '@/lib/utils';
 import { validateDOB, validateBodyStat } from '@/lib/validation';
 import { useLocale } from '@/lib/i18n';
 import type { Gender, SkinType, SkinConcern, SkinGoal, BudgetRange } from '@/lib/types';
 
-const TOTAL_STEPS = 9;
+const TOTAL_STEPS = 10;
 
 // ── Skin quiz config ──
 
@@ -74,6 +75,8 @@ export default function OnboardingPage() {
   const [skinGoals, setSkinGoals] = useState<SkinGoal[]>([]);
   const [budgetRange, setBudgetRange] = useState<BudgetRange | ''>('');
   const [hijabWearer, setHijabWearer] = useState(false);
+  const [photoUploaded, setPhotoUploaded] = useState(false);
+  const [photoAnalyzing, setPhotoAnalyzing] = useState(false);
 
   const steps = [
     { emoji: '👋', title: t('onboarding.nameTitle'), subtitle: t('onboarding.nameSubtitle') },
@@ -85,6 +88,7 @@ export default function OnboardingPage() {
     { emoji: '🌟', title: t('skin.quiz.goalsTitle'), subtitle: t('skin.quiz.goalsSubtitle') },
     { emoji: '💰', title: t('skin.quiz.budgetTitle'), subtitle: t('skin.quiz.budgetSubtitle') },
     { emoji: '🧕', title: t('skin.quiz.extraTitle'), subtitle: t('skin.quiz.extraSubtitle') },
+    { emoji: '📸', title: 'Foto kulit (opsional)', subtitle: 'Upload foto biar Sona bisa analisis kondisi kulit kamu' },
   ];
 
   // Fetch profile on mount
@@ -243,11 +247,15 @@ export default function OnboardingPage() {
       const ok2 = await saveStep({ onboarding_step: nextStep });
       if (!ok2) return;
     } else if (step === 8) {
-      // Final step — save hijab + mark complete
+      // Save hijab, advance to photo step
       const ok1 = await saveSkinProfile({ hijab_wearer: hijabWearer, quiz_completed: true });
       if (!ok1) return;
-      const ok2 = await saveStep({ onboarding_completed: true, skin_quiz_completed: true, onboarding_step: nextStep });
+      const ok2 = await saveStep({ skin_quiz_completed: true, onboarding_step: nextStep });
       if (!ok2) return;
+    } else if (step === 9) {
+      // Final step — mark onboarding complete (photo is optional)
+      const ok = await saveStep({ onboarding_completed: true, onboarding_step: nextStep });
+      if (!ok) return;
       router.replace('/dashboard');
       return;
     }
@@ -296,9 +304,17 @@ export default function OnboardingPage() {
   const handleSkip = async () => {
     const nextStep = step + 1;
     if (step === 8) {
+      // Skip hijab, advance to photo step
       const ok1 = await saveSkinProfile({ quiz_completed: true });
       if (!ok1) return;
-      const ok = await saveStep({ onboarding_completed: true, skin_quiz_completed: true, onboarding_step: nextStep });
+      const ok = await saveStep({ skin_quiz_completed: true, onboarding_step: nextStep });
+      if (!ok) return;
+      advanceStep(nextStep);
+      return;
+    }
+    if (step === 9) {
+      // Skip photo, complete onboarding
+      const ok = await saveStep({ onboarding_completed: true, onboarding_step: nextStep });
       if (!ok) return;
       router.replace('/dashboard');
       return;
@@ -563,6 +579,61 @@ export default function OnboardingPage() {
                 </div>
               </div>
             )}
+
+            {/* Step 9: Photo upload */}
+            {step === 9 && user && (
+              <div className="space-y-4">
+                {photoUploaded ? (
+                  <div className="bg-positive-surface border border-positive-border rounded-2xl p-6 text-center">
+                    <span className="text-4xl">✨</span>
+                    <p className="text-sm font-semibold text-positive-text mt-2">Foto berhasil diupload!</p>
+                    <p className="text-xs text-text-secondary mt-1">
+                      {photoAnalyzing ? 'Sona lagi analisis kulit kamu...' : 'Analisis akan muncul di dashboard.'}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <PhotoUpload
+                      userId={user.id}
+                      photoType="skin_face_front"
+                      onUploadComplete={async (photoUrl, photoId) => {
+                        setPhotoUploaded(true);
+                        setPhotoAnalyzing(true);
+                        // Trigger analysis + save to skin_profile
+                        try {
+                          const res = await fetch('/api/analyze-photo', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ photoId, photoUrl }),
+                          });
+                          if (res.ok) {
+                            const analysis = await res.json();
+                            // Save to skin_profiles.ai_skin_analysis and set onboarding_photo_url
+                            const supabase = createClient();
+                            await supabase
+                              .from('skin_profiles')
+                              .update({
+                                ai_skin_analysis: analysis,
+                                onboarding_photo_url: photoUrl,
+                              })
+                              .eq('user_id', user.id);
+                          }
+                        } catch {
+                          // Analysis is best-effort — don't block onboarding
+                        }
+                        setPhotoAnalyzing(false);
+                      }}
+                      onError={(msg) => showToast('error', msg)}
+                    />
+                    <div className="bg-accent-surface border border-accent-border rounded-2xl p-4">
+                      <p className="text-xs text-text-secondary">
+                        💡 Foto membantu Sona kasih saran yang lebih personal. Kamu bisa skip dan upload nanti di halaman Progress.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -574,14 +645,14 @@ export default function OnboardingPage() {
               disabled={saving}
               className="w-full py-3.5 bg-accent hover:bg-accent-hover text-accent-fg font-semibold rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 text-base"
             >
-              {saving ? t('common.saving') : step === 8 ? t('skin.quiz.startJourney') : t('common.continue')}
+              {saving ? t('common.saving') : step === 9 ? t('skin.quiz.startJourney') : t('common.continue')}
             </button>
             <button
               onClick={handleSkip}
               disabled={saving}
               className="w-full py-2 text-text-tertiary text-sm font-medium hover:text-text-muted transition-colors"
             >
-              {step === 8 ? t('common.skipForNow') : t('common.skip')}
+              {step === 9 ? t('common.skipForNow') : t('common.skip')}
             </button>
           </div>
         )}
