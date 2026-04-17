@@ -139,7 +139,9 @@ export interface CoachResponse {
   daily_tip?: string | null;
 }
 
-// ── Legacy Rajin types (kept for compatibility) ──
+// LEGACY: Rajin types below — safe to remove when Pesona migration is complete.
+// These power the habit tracker, food/drink logging, and friend features from Rajin.
+// Pesona does not use them in new code; they exist only for backward compatibility.
 
 export type Frequency = 'daily' | 'weekly';
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';

@@ -46,16 +46,21 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Allow landing page through without auth
-  if (!user && request.nextUrl.pathname === '/') {
+  // Public routes that don't require auth
+  const publicRoutes = ['/', '/terms', '/privacy', '/admin', '/offline'];
+  const isPublicRoute = publicRoutes.includes(request.nextUrl.pathname);
+
+  // Allow landing page and public static pages through without auth
+  if (!user && isPublicRoute) {
     return supabaseResponse;
   }
 
-  // Redirect unauthenticated users to login (except auth pages)
+  // Redirect unauthenticated users to login (except auth + public pages)
   if (
     !user &&
     !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/signup')
+    !request.nextUrl.pathname.startsWith('/signup') &&
+    !isPublicRoute
   ) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';

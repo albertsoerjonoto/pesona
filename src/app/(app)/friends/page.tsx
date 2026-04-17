@@ -36,6 +36,7 @@ export default function ProgressPage() {
     if (!user || fetchedRef.current) return;
     fetchedRef.current = true;
 
+    let isMounted = true;
     const load = async () => {
       const supabase = createClient();
       const { data } = await supabase
@@ -45,15 +46,17 @@ export default function ProgressPage() {
         .order('taken_at', { ascending: false })
         .limit(50);
 
+      if (!isMounted) return;
       if (data) setPhotos(data as unknown as PhotoProgress[]);
       setLoaded(true);
     };
 
     load();
+    return () => { isMounted = false; };
   }, [user]);
 
   const handleUploadComplete = async (photoUrl: string, photoId: string) => {
-    showToast('success', 'Foto berhasil diupload! 📸');
+    showToast('success', t('progress.uploadSuccess') + ' 📸');
 
     // Fetch the newly inserted photo
     const supabase = createClient();
@@ -121,7 +124,7 @@ export default function ProgressPage() {
   );
 
   return (
-    <div className={cn('max-w-lg mx-auto px-4 pb-24', isExpanded && 'lg:max-w-4xl lg:px-8')}>
+    <main className={cn('max-w-lg mx-auto px-4 pb-24', isExpanded && 'lg:max-w-4xl lg:px-8')}>
       {ToastContainer}
 
       {/* Header */}
@@ -310,6 +313,6 @@ export default function ProgressPage() {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

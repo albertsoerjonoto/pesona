@@ -4,13 +4,43 @@ import Providers from './providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Pesona.io',
-  description: 'AI-powered personal beauty & body coach for Indonesia. Skincare routines, progress tracking, and personalized advice.',
+  title: {
+    default: 'Pesona — AI Beauty Coach Kamu',
+    template: '%s | Pesona',
+  },
+  description: 'AI personal beauty coach kamu dalam bahasa kamu. Skincare routine, progress tracking, dan rekomendasi produk Indonesia.',
   manifest: '/manifest.json',
+  metadataBase: new URL('https://pesona.io'),
+  openGraph: {
+    title: 'Pesona — AI Beauty Coach Kamu',
+    description: 'AI personal beauty coach kamu dalam bahasa kamu. Skincare routine, progress tracking, dan rekomendasi produk Indonesia.',
+    url: 'https://pesona.io',
+    siteName: 'Pesona',
+    locale: 'id_ID',
+    type: 'website',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Pesona — AI Beauty Coach Kamu',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Pesona — AI Beauty Coach Kamu',
+    description: 'AI personal beauty coach kamu dalam bahasa kamu.',
+    images: ['/og-image.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Pesona.io',
+    title: 'Pesona',
   },
   formatDetection: {
     telephone: false,
@@ -20,8 +50,11 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Allow users to zoom up to 5× for accessibility (low-vision users).
+  // Previously capped at 1× which failed WCAG. iOS form inputs still avoid
+  // auto-zoom because globals.css sets input font-size ≥16px.
+  maximumScale: 5,
+  userScalable: true,
   viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#FFFBFC' },

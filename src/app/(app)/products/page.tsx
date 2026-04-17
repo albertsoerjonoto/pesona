@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useLocale } from '@/lib/i18n';
 import { useDesktopLayout } from '@/hooks/useDesktopLayout';
@@ -41,6 +41,7 @@ export default function ProductsPage() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ProductCategory | 'all'>('all');
   const [skinFilter, setSkinFilter] = useState<SkinType | 'all'>('all');
@@ -81,20 +82,29 @@ export default function ProductsPage() {
     setComparing(false);
   };
 
-  useEffect(() => {
-    const load = async () => {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
       const supabase = createClient();
-      const { data } = await supabase
+      const { data, error: queryError } = await supabase
         .from('products')
         .select('*')
         .order('brand', { ascending: true })
         .order('name', { ascending: true });
 
+      if (queryError) throw queryError;
       if (data) setProducts(data as unknown as Product[]);
+    } catch {
+      setError(true);
+    } finally {
       setLoading(false);
-    };
-    load();
+    }
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const filtered = products.filter(p => {
     if (category !== 'all' && p.category !== category) return false;
@@ -109,11 +119,11 @@ export default function ProductsPage() {
   });
 
   return (
-    <div className={cn('max-w-lg mx-auto px-4 pb-24', isExpanded && 'lg:max-w-4xl lg:px-8')}>
+    <main className={cn('max-w-lg mx-auto px-4 pb-24', isExpanded && 'lg:max-w-4xl lg:px-8')}>
       {/* Header */}
       <div className="sticky top-0 z-20 bg-bg pb-3 -mx-4 px-4 pt-6">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-bold text-text-primary">Produk Skincare</h1>
+          <h1 className="text-xl font-bold text-text-primary">{t('product.title')}</h1>
           <button
             onClick={() => {
               setCompareMode(m => !m);
@@ -124,7 +134,7 @@ export default function ProductsPage() {
               compareMode ? 'bg-accent text-accent-fg' : 'bg-surface border border-border text-text-secondary'
             )}
           >
-            {compareMode ? '✓ Compare' : '⚖️ Compare'}
+            {compareMode ? `✓ ${t('product.compare')}` : `⚖️ ${t('product.compare')}`}
           </button>
         </div>
 
@@ -137,7 +147,8 @@ export default function ProductsPage() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Cari produk, brand, atau ingredient..."
+            placeholder={t('product.searchPlaceholder')}
+            aria-label={t('product.searchPlaceholder')}
             className="w-full pl-10 pr-4 py-2.5 bg-surface rounded-xl border border-border-strong text-sm focus:outline-none focus:ring-1 focus:ring-input-ring"
           />
         </div>
@@ -180,7 +191,7 @@ export default function ProductsPage() {
       </div>
 
       {/* Results count */}
-      <p className="text-xs text-text-tertiary mb-3">{filtered.length} produk ditemukan</p>
+      <p className="text-xs text-text-tertiary mb-3">{filtered.length} {t('product.resultsCount')}</p>
 
       {/* Product grid */}
       {loading ? (
@@ -189,9 +200,20 @@ export default function ProductsPage() {
             <div key={i} className="h-24 bg-surface rounded-xl animate-shimmer" />
           ))}
         </div>
+      ) : error ? (
+        <div className="text-center py-12">
+          <div className="text-4xl mb-4">😵</div>
+          <p className="text-sm text-text-secondary mb-4">{t('product.loadError')}</p>
+          <button
+            onClick={() => load()}
+            className="px-6 py-2.5 bg-accent text-accent-fg font-medium rounded-xl hover:bg-accent-hover transition-all"
+          >
+            {t('error.retry')}
+          </button>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-sm text-text-secondary">Tidak ada produk yang cocok</p>
+          <p className="text-sm text-text-secondary">{t('product.noMatch')}</p>
         </div>
       ) : (
         <div className="space-y-2 pb-20">
@@ -338,7 +360,7 @@ export default function ProductsPage() {
                   <h2 className="text-lg font-bold text-text-primary">{selectedProduct.name}</h2>
                   <p className="text-sm text-text-secondary">{selectedProduct.brand}</p>
                 </div>
-                <button onClick={() => setSelectedProduct(null)} className="text-text-tertiary p-1">
+                <button onClick={() => setSelectedProduct(null)} aria-label="Close" className="text-text-tertiary p-1">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -360,7 +382,7 @@ export default function ProductsPage() {
               {/* How to use */}
               {selectedProduct.how_to_use && (
                 <div className="bg-surface rounded-xl p-3 mb-4">
-                  <p className="text-xs font-semibold text-text-label mb-1">Cara Pakai</p>
+                  <p className="text-xs font-semibold text-text-label mb-1">{t('product.howToUse')}</p>
                   <p className="text-xs text-text-secondary">{selectedProduct.how_to_use}</p>
                 </div>
               )}
@@ -380,7 +402,7 @@ export default function ProductsPage() {
               {/* Suitable skin types */}
               {selectedProduct.suitable_skin_types.length > 0 && (
                 <div className="mb-4">
-                  <p className="text-xs font-semibold text-text-label mb-2">Cocok untuk</p>
+                  <p className="text-xs font-semibold text-text-label mb-2">{t('product.suitableFor')}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedProduct.suitable_skin_types.map((st, i) => (
                       <span key={i} className="px-2 py-1 bg-accent-surface text-accent-text rounded-lg text-xs capitalize">{t(`skin.type.${st}`)}</span>
@@ -392,7 +414,7 @@ export default function ProductsPage() {
               {/* Concerns addressed */}
               {selectedProduct.addresses_concerns.length > 0 && (
                 <div className="mb-5">
-                  <p className="text-xs font-semibold text-text-label mb-2">Membantu</p>
+                  <p className="text-xs font-semibold text-text-label mb-2">{t('product.helpsFor')}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedProduct.addresses_concerns.map((c, i) => (
                       <span key={i} className="px-2 py-1 bg-positive-surface text-positive-text rounded-lg text-xs">{t(`skin.concern.${c}`)}</span>
@@ -423,6 +445,6 @@ export default function ProductsPage() {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }
