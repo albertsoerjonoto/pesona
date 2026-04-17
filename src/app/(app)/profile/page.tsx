@@ -18,10 +18,13 @@ import { useLocale } from '@/lib/i18n';
 import { useDesktopLayout } from '@/hooks/useDesktopLayout';
 import { useTour } from '@/components/tour/useTour';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import type { Profile, Gender, Locale } from '@/lib/types';
 
 // Lazy-load PaywallModal — only pulled in when user opens it
 const PaywallModal = dynamic(() => import('@/components/PaywallModal'), { ssr: false });
+// Lazy-load ReferralCard — only fetches referral API after profile is ready
+const ReferralCard = dynamic(() => import('@/components/ReferralCard'), { ssr: false });
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -371,7 +374,18 @@ export default function ProfilePage() {
                 disabled={uploading}
               >
                 {avatarUrl ? (
-                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  <Image
+                    src={avatarUrl}
+                    alt="Avatar"
+                    width={80}
+                    height={80}
+                    className="w-full h-full object-cover"
+                    // Avatar URLs carry a cache-bust timestamp (?t=...) and come
+                    // from Supabase Storage; unoptimized avoids the Next image
+                    // loader rejecting the dynamic query string.
+                    unoptimized
+                    priority
+                  />
                 ) : (
                   <span className="text-2xl font-bold text-white flex items-center justify-center w-full h-full">
                     {initials}
@@ -454,6 +468,11 @@ export default function ProfilePage() {
                 <span className="text-sm text-text-tertiary">{new Date(subscriptionEnd).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
               </div>
             )}
+          </div>
+
+          {/* Referral */}
+          <div className="mt-4">
+            <ReferralCard />
           </div>
 
           {/* Language section */}
