@@ -1,5 +1,8 @@
 import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/vitest';
 import 'jest-axe/extend-expect';
+import { cleanup } from '@testing-library/react';
+import { afterEach } from 'vitest';
 
 // Ensure localStorage is available in test environment
 // Some jsdom versions require a URL to enable localStorage
@@ -18,3 +21,8 @@ Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock });
 
 // Mock scrollIntoView (not available in jsdom)
 Element.prototype.scrollIntoView = vi.fn();
+
+// Auto-cleanup mounted React trees between tests to avoid DOM leaks.
+afterEach(() => {
+  cleanup();
+});

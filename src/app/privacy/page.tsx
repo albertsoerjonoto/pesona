@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function PrivacyPolicyPage() {
   return (
-    <div className="min-h-screen bg-bg">
+    <main className="min-h-screen bg-bg">
       <div className="max-w-2xl mx-auto px-6 py-12">
         <Link
           href="/"
@@ -237,6 +237,6 @@ export default function PrivacyPolicyPage() {
           Pesona.io &copy; {new Date().getFullYear()}
         </p>
       </div>
-    </div>
+    </main>
   );
 }

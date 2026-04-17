@@ -11,6 +11,7 @@ export default defineConfig({
     },
     globals: true,
     setupFiles: ['./src/__tests__/setup.ts'],
+    exclude: ['node_modules', '.next', 'src/__tests__/setup.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],

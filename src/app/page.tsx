@@ -59,6 +59,7 @@ export default function LandingPage() {
         </div>
       </header>
 
+      {/* Main landmark — wraps hero + features for screen reader navigation */}
       <main>
       {/* Hero */}
       <section className="pt-32 pb-20 px-6">
