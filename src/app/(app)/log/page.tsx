@@ -155,14 +155,17 @@ export default function LogPage() {
         streak_count: newStreak,
       }, { onConflict: 'user_id,date' });
 
-      // Fire celebration
+      // Fire routine-completion celebration
       celebrate();
 
-      // Check for streak milestone
-      const milestone = hitMilestone(todayAlreadyCounted ? prevStreak - 1 : prevStreak, newStreak);
-      if (milestone) {
-        setMilestoneHit(milestone);
-        setTimeout(() => celebrateStreak(), 500);
+      // Check for streak milestone — ONLY when the streak actually advanced
+      // today (not on repeated completions of same-day routines)
+      if (!todayAlreadyCounted) {
+        const milestone = hitMilestone(prevStreak, newStreak);
+        if (milestone) {
+          setMilestoneHit(milestone);
+          setTimeout(() => celebrateStreak(), 500);
+        }
       }
     }
 

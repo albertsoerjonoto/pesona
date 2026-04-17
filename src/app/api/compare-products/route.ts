@@ -4,6 +4,33 @@ import { createClient } from '@/lib/supabase/server';
 
 export const maxDuration = 60;
 
+// Mirror of analyze-photo forbidden terms — post-process guard against
+// clinical vocabulary slipping through the prompt constraint
+const FORBIDDEN_TERMS = [
+  'rosacea', 'melasma', 'eczema', 'psoriasis', 'dermatitis',
+  'atopic', 'cystic acne', 'fungal acne', 'keratosis pilaris',
+  'perioral', 'post-inflammatory', 'PIH', 'PIE', 'comedones',
+  'hirsutism', 'alopecia', 'melanoma', 'seborrheic',
+  'seboroik', 'folliculitis', 'malassezia', 'xerosis',
+  'acne vulgaris', 'nodular acne',
+];
+
+function sanitizeClinicalTerms<T>(obj: T): T {
+  const str = JSON.stringify(obj);
+  const lower = str.toLowerCase();
+  const hits = FORBIDDEN_TERMS.filter(t => lower.includes(t.toLowerCase()));
+  if (hits.length === 0) return obj;
+  let cleaned = str;
+  for (const term of hits) {
+    cleaned = cleaned.replace(new RegExp(term, 'gi'), 'kondisi kulit');
+  }
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    return obj;
+  }
+}
+
 const COMPARE_PROMPT = `Kamu Sona, AI beauty coach Pesona. Bandingkan 2-3 produk skincare dalam Bahasa Indonesia casual.
 
 ATURAN:
@@ -115,7 +142,10 @@ export async function POST(req: NextRequest) {
       products: productSummaries,
     };
 
-    return NextResponse.json(normalized);
+    // Post-process: scrub any clinical terms that leaked past the prompt
+    const sanitized = sanitizeClinicalTerms(normalized);
+
+    return NextResponse.json(sanitized);
   } catch (error) {
     console.error('Compare products error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
