@@ -57,12 +57,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch user context in parallel
-    const [profileRes, skinProfileRes, routinesRes, checkinsRes, historyRes] = await Promise.all([
+    const [profileRes, skinProfileRes, routinesRes, checkinsRes, historyRes, memoryRes, msgCountRes] = await Promise.all([
       supabase.from('profiles').select('display_name, gender, locale, skin_quiz_completed').eq('id', user.id).single(),
       supabase.from('skin_profiles').select('*').eq('user_id', user.id).single(),
       supabase.from('routines').select('*').eq('user_id', user.id).eq('active', true),
       supabase.from('daily_checkins').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(7),
-      supabase.from('ai_conversations').select('role, content').eq('user_id', user.id).order('created_at', { ascending: false }).limit(15),
+      supabase.from('ai_conversations').select('role, content, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
+      supabase.from('coach_memory').select('summary').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3),
+      supabase.from('ai_conversations').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
     ]);
 
     const profile = profileRes.data;
@@ -70,6 +72,8 @@ export async function POST(req: NextRequest) {
     const routines = routinesRes.data || [];
     const checkins = checkinsRes.data || [];
     const history = (historyRes.data || []).reverse();
+    const memories = memoryRes.data || [];
+    const totalMsgCount = msgCountRes.count || 0;
 
     // Build context
     let context = '';
@@ -91,6 +95,14 @@ export async function POST(req: NextRequest) {
     }
     if (checkins.length > 0) {
       context += `Recent Check-ins: ${checkins.map(c => `${c.date}: ${c.skin_feeling || 'no feeling'}`).join(', ')}\n`;
+    }
+
+    // Add compressed memory summaries for longer context
+    if (memories.length > 0) {
+      context += `\nPrevious conversation summaries (oldest first):\n`;
+      memories.reverse().forEach((m, i) => {
+        context += `--- Memory ${i + 1} ---\n${m.summary}\n`;
+      });
     }
 
     // Build message history for Gemini
@@ -172,9 +184,74 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Trigger memory compression every 20 messages (fire and forget)
+    if (totalMsgCount > 0 && totalMsgCount % 20 === 0) {
+      compressMemory(user.id, apiKey).catch(err => {
+        console.error('Memory compression failed:', err);
+      });
+    }
+
     return NextResponse.json(parsed);
   } catch (error) {
     console.error('Coach API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+}
+
+async function compressMemory(userId: string, apiKey: string) {
+  // Use service role client — fire-and-forget runs AFTER the response is
+  // sent, so request-scoped cookies() from @/lib/supabase/server would fail.
+  // Service role bypasses RLS, so we MUST filter by user_id explicitly.
+  const { createClient } = await import('@supabase/supabase-js');
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceKey) {
+    console.error('compressMemory: missing Supabase service role config');
+    return;
+  }
+  const supabase = createClient(supabaseUrl, serviceKey);
+
+  // Get latest memory timestamp to know where to start
+  const { data: lastMemory } = await supabase
+    .from('coach_memory')
+    .select('covers_to')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // Get messages to compress (ones not yet in memory)
+  let query = supabase
+    .from('ai_conversations')
+    .select('role, content, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true })
+    .limit(20);
+
+  if (lastMemory?.covers_to) {
+    query = query.gt('created_at', lastMemory.covers_to);
+  }
+
+  const { data: messages } = await query;
+  if (!messages || messages.length < 10) return; // Not enough to compress
+
+  const ai = new GoogleGenAI({ apiKey });
+  const convoText = messages.map(m => `${m.role}: ${m.content}`).join('\n');
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: [{ role: 'user', parts: [{ text: `Ringkas percakapan skincare berikut jadi 3-5 poin penting (bahasa Indonesia). Fokus pada: concern user, produk yang sudah direkomendasikan, routine yang disarankan, progress yang dicatat.\n\n${convoText}` }] }],
+    config: { temperature: 0.3, maxOutputTokens: 512 },
+  });
+
+  const summary = response.text || '';
+  if (!summary) return;
+
+  await supabase.from('coach_memory').insert({
+    user_id: userId,
+    summary,
+    message_count: messages.length,
+    covers_from: messages[0].created_at,
+    covers_to: messages[messages.length - 1].created_at,
+  });
 }
