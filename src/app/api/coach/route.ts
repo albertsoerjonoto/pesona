@@ -6,6 +6,7 @@ import {
   ESCALATION_TEMPLATE,
 } from '@/lib/ai/validate';
 import { checkRateLimit, getUserTier } from '@/lib/payments/rate-limit';
+import { trackServerEvent, shutdownPostHog } from '@/lib/analytics/posthog-server';
 
 export const maxDuration = 60;
 
@@ -27,21 +28,31 @@ CAPABILITIES:
 - Explain ingredients in simple terms (niacinamide, hyaluronic acid, retinol, etc.)
 
 STRICT RULES — WAJIB:
-1. JANGAN PERNAH gunakan istilah klinis: "rosacea", "melasma", "dermatitis", "xerosis", "seborrheic", "acne vulgaris"
-2. Gunakan: "kusam", "berjerawat", "berminyak", "kering", "bruntusan", "flek hitam", "komedo", "kemerahan"
+1. JANGAN PERNAH gunakan istilah klinis: rosacea, melasma, eczema, psoriasis, dermatitis, atopic, cystic acne, fungal acne, keratosis pilaris, perioral, post-inflammatory, PIH, PIE, comedones, hirsutism, alopecia, melanoma, seborrheic, seboroik, folliculitis, malassezia, xerosis, acne vulgaris, nodular acne
+2. Gunakan bahasa user-friendly: kusam, berjerawat, berminyak, kering, bruntusan, flek hitam, komedo, kemerahan, bekas jerawat, tekstur kasar, pori tersumbat, kulit sensitif
 3. JANGAN PERNAH diagnosa. Say "kayaknya" (seems like), "mungkin" (maybe)
 4. JANGAN PERNAH rekomendasikan obat resep
-5. Jika gejala serius (cystic acne parah, ruam menyebar, luka tak sembuh): "Hmm, ini kayaknya perlu dicek sama dokter kulit ya. Aku coach, bukan dokter, jadi untuk yang ini lebih aman kalau kamu konsul ke dermatologist"
+5. ESCALATION — MANDATORY. If the user's message matches ANY of these categories, set "escalation": { "needed": true, "reason": "<short user-friendly Bahasa string, e.g. 'kondisi kulit yang butuh pemeriksaan dokter'>" } in your JSON, set "message" to the EXACT template in §5b below, and set routine_suggestion, product_recommendations, and daily_tip to null:
+   a) Deep, painful, or pus-filled breakouts; cysts; rapid worsening; OR 6+ weeks with no improvement
+   b) Sudden mole changes; unusual bumps; lesions that do not heal; severe allergic reactions
+   c) Direct medical questions like "Apakah aku punya [kondisi]?" OR requests for prescription dosage
+   d) Pregnancy or breastfeeding + specific ingredient safety questions
+   e) Known medical condition or currently on specific medications
+   f) GLP-1 / Ozempic / Wegovy / Mounjaro / Saxenda questions
+   g) BMI ≥ 30 with comorbidities OR any suspected eating-disorder signal
+5b. EXACT ESCALATION TEMPLATE for the "message" field (copy verbatim, do not paraphrase):
+   "Hmm, yang kamu ceritain kedengarannya butuh dilihat langsung sama dermatologist biar dapat pemeriksaan dan saran yang tepat. Aku bisa bantu kasih info umum dan rekomendasi produk basic, tapi untuk kondisi kayak gini, konsultasi dokter lebih aman ya. Mau aku bantu booking konsultasi online lewat Haloskin (Halodoc)? Biasanya Rp 25.000–50.000 per konsultasi dan kamu bisa dapat jawaban dari dokter beneran dalam hitungan jam."
 6. JANGAN PERNAH klaim produk bisa "cure" atau "treat" — gunakan "membantu", "bisa memperbaiki", "cocok untuk"
-7. SELALU mulai dengan sesuatu yang positif atau encouraging
+7. SELALU mulai dengan sesuatu yang positif atau encouraging (kecuali escalation — escalation template langsung, no opener)
 8. All product recommendations must be BPOM-registered
 
 RESPONSE FORMAT — Return valid JSON:
 {
-  "message": "conversational response in user's language",
+  "message": "conversational response in user's language (or the EXACT escalation template if escalating)",
   "routine_suggestion": { "type": "morning or evening", "steps": [{ "step_number": 1, "category": "cleanser", "product_name": "...", "product_brand": "...", "instruction": "..." }] } or null,
   "product_recommendations": [{ "name": "...", "brand": "...", "reason": "..." }] or null,
-  "daily_tip": "short wellness tip" or null
+  "daily_tip": "short wellness tip" or null,
+  "escalation": { "needed": true, "reason": "short user-friendly Bahasa string" } or null
 }
 
 Always respond in the SAME language the user writes in. Keep "message" conversational and warm.`;
@@ -260,6 +271,17 @@ export async function POST(req: NextRequest) {
             ? raw.product_recommendations.filter((r: unknown) => r && typeof r === 'object' && 'name' in (r as Record<string, unknown>)).slice(0, 10)
             : null,
           daily_tip: typeof raw.daily_tip === 'string' ? raw.daily_tip : null,
+          // Trust Gemini's proactive escalation only if the model set both
+          // `needed: true` and a non-empty reason — anything else collapses
+          // to null so the chat UI never renders a CTA without real signal.
+          escalation:
+            raw.escalation &&
+            typeof raw.escalation === 'object' &&
+            raw.escalation.needed === true &&
+            typeof raw.escalation.reason === 'string' &&
+            raw.escalation.reason.length > 0
+              ? { needed: true, reason: raw.escalation.reason }
+              : null,
         };
       } catch {
         parsed = { message: rawText, routine_suggestion: null, product_recommendations: null, daily_tip: null };
@@ -314,6 +336,18 @@ export async function POST(req: NextRequest) {
       parsed.product_recommendations = enriched;
     }
 
+    // Fire PostHog event whenever we're about to tell the user to see a
+    // dermatologist (either from Gemini proactively catching a §5.4 trigger
+    // or from the validator falling back to ESCALATION_TEMPLATE). Tracks
+    // the `escalation_triggered` event already declared in events.ts.
+    if (parsed.escalation?.needed) {
+      trackServerEvent(user.id, 'escalation_triggered', {
+        reason: parsed.escalation.reason,
+      });
+      // Don't await — trackServerEvent is fire-and-forget; shutdownPostHog
+      // only matters in cron/webhook paths where the function will exit.
+    }
+
     // Save assistant message
     await supabase.from('ai_conversations').insert({
       user_id: user.id,
@@ -323,6 +357,7 @@ export async function POST(req: NextRequest) {
         routine_suggestion: parsed.routine_suggestion || null,
         product_recommendations: parsed.product_recommendations || null,
         daily_tip: parsed.daily_tip || null,
+        escalation: parsed.escalation || null,
       },
     });
 
@@ -331,6 +366,12 @@ export async function POST(req: NextRequest) {
       compressMemory(user.id, apiKey).catch(err => {
         console.error('Memory compression failed:', err);
       });
+    }
+
+    // If we fired an escalation event, flush PostHog before the response
+    // closes so the event isn't dropped when the lambda/server goes cold.
+    if (parsed.escalation?.needed) {
+      await shutdownPostHog();
     }
 
     return NextResponse.json(parsed);
