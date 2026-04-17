@@ -27,19 +27,33 @@ describe('PaywallModal', () => {
     expect(screen.queryByText('Upgrade Pesona kamu')).not.toBeInTheDocument();
   });
 
-  it('renders Plus and Pro tiers when open=true', () => {
+  it('renders Plus, Pro, and Elite tiers when open=true', () => {
     render(<PaywallModal open={true} onClose={() => {}} trigger="chat_limit" />);
     expect(screen.getByText('Upgrade Pesona kamu')).toBeInTheDocument();
     expect(screen.getByText('Pesona Plus')).toBeInTheDocument();
     expect(screen.getByText('Pesona Pro')).toBeInTheDocument();
+    expect(screen.getByText('Pesona Glow')).toBeInTheDocument();
   });
 
-  it('displays correct IDR pricing', () => {
+  it('displays correct monthly IDR pricing for all three tiers', () => {
     render(<PaywallModal open={true} onClose={() => {}} trigger="chat_limit" />);
-    // 59.000 (Plus) and 179.000 (Pro) with non-breaking or regular formatting
+    // 59.000 (Plus), 179.000 (Pro), 499.000 (Elite)
     const bodyText = document.body.textContent || '';
     expect(bodyText).toMatch(/Rp\s?59\D?000/);
     expect(bodyText).toMatch(/Rp\s?179\D?000/);
+    expect(bodyText).toMatch(/Rp\s?499\D?000/);
+  });
+
+  it('swaps to annual pricing when Tahunan toggle is clicked', () => {
+    render(<PaywallModal open={true} onClose={() => {}} trigger="chat_limit" />);
+    fireEvent.click(screen.getByRole('tab', { name: /Tahunan/ }));
+    const bodyText = document.body.textContent || '';
+    // Annual = 10× monthly per spec §10.1: 590k / 1.79M / 4.99M
+    expect(bodyText).toMatch(/Rp\s?590\D?000/);
+    expect(bodyText).toMatch(/Rp\s?1\D?790\D?000/);
+    expect(bodyText).toMatch(/Rp\s?4\D?990\D?000/);
+    // And the /bln suffix should be gone in favor of /tahun
+    expect(bodyText).toMatch(/\/tahun/);
   });
 
   it('fires paywall_shown on mount when open', () => {
@@ -60,16 +74,29 @@ describe('PaywallModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('routes to /subscription/checkout?tier=plus when Plus CTA clicked', () => {
+  it('routes to Plus monthly checkout by default', () => {
     render(<PaywallModal open={true} onClose={() => {}} trigger="chat_limit" />);
     fireEvent.click(screen.getByRole('button', { name: 'Pilih Plus' }));
-    expect(push).toHaveBeenCalledWith('/subscription/checkout?tier=plus');
+    expect(push).toHaveBeenCalledWith('/subscription/checkout?tier=plus&period=monthly');
   });
 
-  it('routes to /subscription/checkout?tier=pro when Pro CTA clicked', () => {
+  it('routes to Pro monthly checkout by default', () => {
     render(<PaywallModal open={true} onClose={() => {}} trigger="chat_limit" />);
     fireEvent.click(screen.getByRole('button', { name: 'Pilih Pro' }));
-    expect(push).toHaveBeenCalledWith('/subscription/checkout?tier=pro');
+    expect(push).toHaveBeenCalledWith('/subscription/checkout?tier=pro&period=monthly');
+  });
+
+  it('routes to Elite checkout when Glow CTA clicked', () => {
+    render(<PaywallModal open={true} onClose={() => {}} trigger="chat_limit" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Pilih Glow' }));
+    expect(push).toHaveBeenCalledWith('/subscription/checkout?tier=elite&period=monthly');
+  });
+
+  it('routes to annual checkout when Tahunan toggle is on', () => {
+    render(<PaywallModal open={true} onClose={() => {}} trigger="chat_limit" />);
+    fireEvent.click(screen.getByRole('tab', { name: /Tahunan/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pilih Pro' }));
+    expect(push).toHaveBeenCalledWith('/subscription/checkout?tier=pro&period=annual');
   });
 
   it('shows wellness disclaimer', () => {
