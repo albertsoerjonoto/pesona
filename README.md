@@ -1,12 +1,12 @@
 # Pesona.io
 
-AI-powered personal beauty & body coach for Indonesia.
+AI-native personal beauty & body coach for Indonesia.
 
 ## Getting Started
 
 ```bash
 cp .env.local.example .env.local
-# Fill in your Supabase and Anthropic API keys
+# Fill in your Supabase credentials and Gemini API key
 npm install
 npm run dev
 ```
@@ -18,7 +18,8 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 - **Framework**: Next.js 15 (App Router), TypeScript
 - **Styling**: Tailwind CSS v4
 - **Backend/Auth**: Supabase (email/password, OAuth, PostgreSQL, Storage)
-- **AI**: Claude API (Anthropic)
+- **AI**: Google Gemini 2.5 Flash (coach chat, vision analysis, routine generator)
+- **Payments**: Midtrans (QRIS, VA, card) via `/api/subscription/checkout`
 - **Deploy**: Vercel at pesona.io
 
 ## Scripts
