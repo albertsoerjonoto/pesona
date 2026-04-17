@@ -5,6 +5,7 @@ import {
   validateAIOutput,
   ESCALATION_TEMPLATE,
 } from '@/lib/ai/validate';
+import { checkRateLimit, getUserTier } from '@/lib/payments/rate-limit';
 
 export const maxDuration = 60;
 
@@ -58,6 +59,28 @@ export async function POST(req: NextRequest) {
 
     if (!message?.trim() && !image_url) {
       return NextResponse.json({ error: 'Message required' }, { status: 400 });
+    }
+
+    // Enforce Free-tier 3 msg/day cap (Build Spec §10.1). Paid tiers return
+    // `Infinity` and allowed=true in checkRateLimit, so the gate is a no-op
+    // for them. On 429 the client opens PaywallModal with trigger=chat_limit.
+    const tier = await getUserTier(user.id);
+    const rateLimit = await checkRateLimit(user.id, tier, 'chat');
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: 'rate_limited',
+          paywall: true,
+          trigger: 'chat_limit',
+          tier,
+          limit: rateLimit.limit,
+          remaining: rateLimit.remaining,
+          reset_at: rateLimit.resetAt,
+          message:
+            'Kamu udah mentok limit chat harian di tier gratis. Upgrade ke Pesona Plus untuk unlimited chat ya!',
+        },
+        { status: 429 },
+      );
     }
 
     // Fetch user context in parallel (acts as pre-loaded "tool results")

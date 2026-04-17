@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/lib/i18n';
@@ -9,6 +10,9 @@ import { useDesktopLayout } from '@/hooks/useDesktopLayout';
 import { useToast } from '@/components/Toast';
 import { cn } from '@/lib/utils';
 import type { CoachResponse } from '@/lib/types';
+
+// Lazy-load paywall — only pulled in when the user hits the Free-tier cap
+const PaywallModal = dynamic(() => import('@/components/PaywallModal'), { ssr: false });
 
 interface ChatMsg {
   id: string;
@@ -41,6 +45,7 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [savingRoutine, setSavingRoutine] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -108,6 +113,14 @@ export default function ChatPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text.trim() }),
       });
+
+      // Free-tier daily chat cap hit (Build Spec §10.1) — open paywall, keep
+      // the user's last bubble visible as context for what they were asking.
+      if (res.status === 429) {
+        setPaywallOpen(true);
+        setSending(false);
+        return;
+      }
 
       if (!res.ok) throw new Error('Failed');
 
@@ -433,6 +446,12 @@ export default function ChatPage() {
           </button>
         </div>
       </div>
+
+      <PaywallModal
+        open={paywallOpen}
+        onClose={() => setPaywallOpen(false)}
+        trigger="chat_limit"
+      />
     </div>
   );
 }
