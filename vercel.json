@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/morning-nudge",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/evening-nudge",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-checkin",
+      "schedule": "0 12 * * 0"
+    }
+  ]
+}

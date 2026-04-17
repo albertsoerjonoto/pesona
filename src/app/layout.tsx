@@ -4,13 +4,34 @@ import Providers from './providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Pesona.io',
-  description: 'AI-powered personal beauty & body coach for Indonesia. Skincare routines, progress tracking, and personalized advice.',
+  title: {
+    default: 'Pesona — AI Beauty Coach Kamu',
+    template: '%s | Pesona',
+  },
+  description: 'AI personal beauty coach kamu dalam bahasa kamu. Skincare routine, progress tracking, dan rekomendasi produk Indonesia.',
   manifest: '/manifest.json',
+  metadataBase: new URL('https://pesona.io'),
+  openGraph: {
+    title: 'Pesona — AI Beauty Coach Kamu',
+    description: 'AI personal beauty coach kamu dalam bahasa kamu. Skincare routine, progress tracking, dan rekomendasi produk Indonesia.',
+    url: 'https://pesona.io',
+    siteName: 'Pesona',
+    locale: 'id_ID',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Pesona — AI Beauty Coach Kamu',
+    description: 'AI personal beauty coach kamu dalam bahasa kamu.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Pesona.io',
+    title: 'Pesona',
   },
   formatDetection: {
     telephone: false,
