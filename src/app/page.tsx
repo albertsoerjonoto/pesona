@@ -24,6 +24,8 @@ export default function LandingPage() {
         </div>
       </header>
 
+      {/* Main landmark — wraps hero + features for screen reader navigation */}
+      <main>
       {/* Hero */}
       <section className="pt-32 pb-20 px-6">
         <div className="max-w-3xl mx-auto text-center">
@@ -241,6 +243,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      </main>
 
       {/* Footer */}
       <footer className="py-12 px-6 border-t border-border">
