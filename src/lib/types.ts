@@ -127,7 +127,14 @@ export interface CoachResponse {
     name: string;
     brand: string;
     reason: string;
+    // Enriched from products table if fuzzy-match succeeded:
     product_id?: string;
+    price_idr?: number;
+    shopee_url?: string;
+    tiktok_shop_url?: string;
+    bpom_registered?: boolean;
+    halal_certified?: boolean;
+    image_url?: string;
   }[] | null;
   daily_tip?: string | null;
 }

@@ -290,11 +290,38 @@ export default function ChatPage() {
                   <div className="mt-3 space-y-2">
                     {msg.metadata.product_recommendations.map((rec, i) => (
                       <div key={i} className="bg-bg/50 rounded-xl p-3 border border-border">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-sm font-semibold">{rec.name}</p>
+                        <div className="flex items-start justify-between mb-1 gap-2">
+                          <p className="text-sm font-semibold flex-1">{rec.name}</p>
+                          <div className="flex gap-1 shrink-0">
+                            {rec.bpom_registered && (
+                              <span className="text-[9px] bg-positive-surface text-positive-text px-1.5 py-0.5 rounded-full font-medium">BPOM</span>
+                            )}
+                            {rec.halal_certified && (
+                              <span className="text-[9px] bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded-full font-medium">Halal</span>
+                            )}
+                          </div>
                         </div>
                         <p className="text-xs text-text-secondary mb-1">{rec.brand}</p>
+                        {typeof rec.price_idr === 'number' && (
+                          <p className="text-xs font-bold text-accent-text mb-1">
+                            Rp {rec.price_idr.toLocaleString('id-ID')}
+                          </p>
+                        )}
                         <p className="text-xs opacity-80">{rec.reason}</p>
+                        {rec.shopee_url && (
+                          <a
+                            href={rec.shopee_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 mt-2 text-[10px] font-semibold text-orange-500 hover:underline"
+                          >
+                            🛒 Beli di Shopee
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                            </svg>
+                          </a>
+                        )}
                       </div>
                     ))}
                   </div>

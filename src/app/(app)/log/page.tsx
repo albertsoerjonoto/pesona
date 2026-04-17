@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/lib/i18n';
 import { useDesktopLayout } from '@/hooks/useDesktopLayout';
+import { celebrate, celebrateStreak, hitMilestone } from '@/lib/celebration';
+import StreakMilestoneCard from '@/components/StreakMilestoneCard';
 import { cn } from '@/lib/utils';
 import type { Routine, RoutineStep, RoutineLog } from '@/lib/types';
 
@@ -24,6 +26,7 @@ export default function LogPage() {
   const [eveningLog, setEveningLog] = useState<RoutineLog | null>(null);
   const [saving, setSaving] = useState(false);
   const [calendarData, setCalendarData] = useState<Record<string, { morning: boolean; evening: boolean }>>({});
+  const [milestoneHit, setMilestoneHit] = useState<number | null>(null);
 
   // Use local date (matches DB date column storage and calendar cells)
   const today = (() => {
@@ -113,14 +116,54 @@ export default function LogPage() {
       else setEveningLog(log);
     }
 
-    // Update daily checkin
+    // Update daily checkin + fire celebrations
     if (isComplete) {
       const field = activeTab === 'morning' ? 'morning_routine_done' : 'evening_routine_done';
+
+      // Calculate current streak BEFORE upsert to detect milestones
+      const { data: prevCheckins } = await supabase
+        .from('daily_checkins')
+        .select('date, streak_count')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false })
+        .limit(90);
+
+      let prevStreak = 0;
+      if (prevCheckins && prevCheckins.length > 0) {
+        // Count consecutive days back from today
+        const d = new Date();
+        for (const entry of prevCheckins) {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          const expected = `${y}-${m}-${day}`;
+          if (entry.date === expected) {
+            prevStreak++;
+            d.setDate(d.getDate() - 1);
+          } else break;
+        }
+      }
+
+      // If today already counted in prevStreak, current == prev; else current = prev + 1
+      const todayAlreadyCounted = prevCheckins?.some(c => c.date === today);
+      const newStreak = todayAlreadyCounted ? prevStreak : prevStreak + 1;
+
       await supabase.from('daily_checkins').upsert({
         user_id: user.id,
         date: today,
         [field]: true,
+        streak_count: newStreak,
       }, { onConflict: 'user_id,date' });
+
+      // Fire celebration
+      celebrate();
+
+      // Check for streak milestone
+      const milestone = hitMilestone(todayAlreadyCounted ? prevStreak - 1 : prevStreak, newStreak);
+      if (milestone) {
+        setMilestoneHit(milestone);
+        setTimeout(() => celebrateStreak(), 500);
+      }
     }
 
     setSaving(false);
@@ -342,6 +385,14 @@ export default function LogPage() {
           </div>
         </div>
       </div>
+
+      {/* Streak milestone modal */}
+      {milestoneHit && (
+        <StreakMilestoneCard
+          streak={milestoneHit}
+          onClose={() => setMilestoneHit(null)}
+        />
+      )}
     </div>
   );
 }

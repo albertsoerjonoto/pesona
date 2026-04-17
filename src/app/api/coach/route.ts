@@ -149,10 +149,23 @@ export async function POST(req: NextRequest) {
     const rawText = response.text || '';
 
     // Parse and validate JSON response
+    type ProductRec = {
+      name: string;
+      brand: string;
+      reason: string;
+      // Enriched fields (added from products table if match found):
+      product_id?: string;
+      price_idr?: number;
+      shopee_url?: string;
+      tiktok_shop_url?: string;
+      bpom_registered?: boolean;
+      halal_certified?: boolean;
+      image_url?: string;
+    };
     let parsed: {
       message: string;
       routine_suggestion?: { type: string; steps: unknown[] } | null;
-      product_recommendations?: { name: string; brand: string; reason: string }[] | null;
+      product_recommendations?: ProductRec[] | null;
       daily_tip?: string | null;
     };
     try {
@@ -170,6 +183,12 @@ export async function POST(req: NextRequest) {
       };
     } catch {
       parsed = { message: rawText, routine_suggestion: null, product_recommendations: null, daily_tip: null };
+    }
+
+    // Enrich product_recommendations with data from products table
+    if (parsed.product_recommendations && parsed.product_recommendations.length > 0) {
+      const enriched = await enrichProductRecs(supabase, parsed.product_recommendations);
+      parsed.product_recommendations = enriched;
     }
 
     // Save assistant message
@@ -196,6 +215,76 @@ export async function POST(req: NextRequest) {
     console.error('Coach API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+}
+
+/**
+ * Enrich AI-generated product recommendations with real data from the
+ * products table via fuzzy matching on name + brand.
+ */
+async function enrichProductRecs(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  recs: Array<{ name: string; brand: string; reason: string; [k: string]: unknown }>
+) {
+  if (recs.length === 0) return recs;
+
+  // Build OR filter: match by brand (ilike) for all recs in one query
+  const brands = Array.from(new Set(recs.map(r => (r.brand || '').trim()).filter(Boolean)));
+  if (brands.length === 0) return recs;
+
+  const { data: candidates } = await supabase
+    .from('products')
+    .select('id, name, brand, price_idr, shopee_url, tiktok_shop_url, bpom_registered, halal_certified, image_url')
+    .or(brands.map(b => `brand.ilike.%${b.replace(/[,(){}\\]/g, '')}%`).join(','))
+    .limit(200);
+
+  if (!candidates || candidates.length === 0) return recs;
+
+  // For each rec, find best match in candidates
+  return recs.map(rec => {
+    const recName = (rec.name || '').toLowerCase().trim();
+    const recBrand = (rec.brand || '').toLowerCase().trim();
+    if (!recName || !recBrand) return rec;
+
+    // Score each candidate: exact brand match + name token overlap
+    let best: (typeof candidates)[number] | null = null;
+    let bestScore = 0;
+
+    const recTokens = new Set(recName.split(/\s+/).filter((t: string) => t.length >= 3));
+
+    for (const c of candidates) {
+      const cBrand = (c.brand || '').toLowerCase().trim();
+      const cName = (c.name || '').toLowerCase().trim();
+      if (cBrand !== recBrand && !cBrand.includes(recBrand) && !recBrand.includes(cBrand)) continue;
+
+      // Token overlap score
+      const cTokens = new Set(cName.split(/\s+/).filter((t: string) => t.length >= 3));
+      let overlap = 0;
+      for (const t of recTokens) if (cTokens.has(t)) overlap++;
+
+      // Bonus for exact name substring match
+      const nameMatch = cName.includes(recName) || recName.includes(cName);
+      const score = overlap + (nameMatch ? 2 : 0) + (cBrand === recBrand ? 1 : 0);
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = c;
+      }
+    }
+
+    if (!best || bestScore < 1) return rec;
+
+    // Enrich with real product data
+    return {
+      ...rec,
+      product_id: best.id,
+      price_idr: best.price_idr ?? undefined,
+      shopee_url: best.shopee_url ?? undefined,
+      tiktok_shop_url: best.tiktok_shop_url ?? undefined,
+      bpom_registered: best.bpom_registered ?? undefined,
+      halal_certified: best.halal_certified ?? undefined,
+      image_url: best.image_url ?? undefined,
+    };
+  });
 }
 
 async function compressMemory(userId: string, apiKey: string) {
