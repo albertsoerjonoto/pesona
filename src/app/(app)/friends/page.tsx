@@ -8,6 +8,7 @@ import { useDesktopLayout } from '@/hooks/useDesktopLayout';
 import { useToast } from '@/components/Toast';
 import PhotoUpload from '@/components/PhotoUpload';
 import { cn } from '@/lib/utils';
+import { shareElementAsCard } from '@/lib/share-card';
 import type { PhotoProgress } from '@/lib/types';
 
 interface AnalysisResult {
@@ -31,6 +32,26 @@ export default function ProgressPage() {
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoProgress | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const shareCardRef = useRef<HTMLDivElement>(null);
+
+  const handleShare = async () => {
+    if (!shareCardRef.current || sharing) return;
+    setSharing(true);
+    const outcome = await shareElementAsCard(shareCardRef.current, {
+      title: 'Progress kulit aku — Pesona',
+      text: 'Lihat progress kulit aku minggu ini!',
+      filename: 'pesona-progress.png',
+      backgroundColor: '#CE3D66',
+      pixelRatio: 3,
+    });
+    if (outcome === 'failed') {
+      showToast('error', 'Gagal buat gambar — coba lagi ya');
+    } else if (outcome === 'downloaded') {
+      showToast('success', 'Gambar tersimpan 📸');
+    }
+    setSharing(false);
+  };
 
   useEffect(() => {
     if (!user || fetchedRef.current) return;
@@ -303,6 +324,25 @@ export default function ProgressPage() {
                 </button>
               )}
 
+              {/* Share button — only offered once the photo has an analysis
+                  so the card has something meaningful on it. */}
+              {selectedPhoto.ai_analysis && (
+                <button
+                  onClick={handleShare}
+                  disabled={sharing}
+                  className="w-full mt-3 py-2.5 bg-gradient-to-r from-accent to-pink-400 text-white font-semibold rounded-xl text-sm hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {sharing ? (
+                    'Membuat gambar...'
+                  ) : (
+                    <>
+                      <span>📷</span>
+                      Bagikan Progress
+                    </>
+                  )}
+                </button>
+              )}
+
               <button
                 onClick={() => setSelectedPhoto(null)}
                 className="w-full mt-3 py-2.5 bg-surface text-text-primary font-medium rounded-xl border border-border text-sm"
@@ -313,6 +353,99 @@ export default function ProgressPage() {
           </div>
         </div>
       )}
+
+      {/* Off-screen share-card composed from the selected photo + analysis.
+          Fixed + offscreen so html-to-image captures the real rendered DOM
+          but users never see it; same pattern as /reports. */}
+      {selectedPhoto && (() => {
+        const analysis = parseAnalysis(selectedPhoto.ai_analysis);
+        if (!analysis) return null;
+        return (
+          <div style={{ position: 'fixed', left: '-9999px', top: 0, width: 400 }}>
+            <div
+              ref={shareCardRef}
+              className="text-white"
+              style={{
+                background: 'linear-gradient(135deg, #CE3D66 0%, #E0527A 50%, #F59FBE 100%)',
+                fontFamily: 'sans-serif',
+                padding: '24px',
+              }}
+            >
+              <div style={{ fontSize: 11, opacity: 0.75, marginBottom: 4 }}>pesona.io</div>
+              <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 2 }}>
+                Skin progress update
+              </div>
+              <div style={{ fontSize: 11, opacity: 0.9, marginBottom: 16 }}>
+                {formatDate(selectedPhoto.taken_at)}
+              </div>
+
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={selectedPhoto.photo_url}
+                alt=""
+                style={{
+                  width: '100%',
+                  borderRadius: 12,
+                  marginBottom: 16,
+                  aspectRatio: '1',
+                  objectFit: 'cover',
+                }}
+                crossOrigin="anonymous"
+              />
+
+              {analysis.overall_score !== undefined && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 12,
+                  }}
+                >
+                  <div style={{ fontSize: 12, opacity: 0.9 }}>Skor keseluruhan</div>
+                  <div style={{ fontSize: 28, fontWeight: 900 }}>
+                    {analysis.overall_score}
+                    <span style={{ fontSize: 12, opacity: 0.75, marginLeft: 4 }}>/100</span>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+                {analysis.brightness !== undefined && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                    <span style={{ opacity: 0.9 }}>Kecerahan</span>
+                    <span style={{ fontWeight: 700 }}>{analysis.brightness}</span>
+                  </div>
+                )}
+                {analysis.texture !== undefined && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                    <span style={{ opacity: 0.9 }}>Tekstur</span>
+                    <span style={{ fontWeight: 700 }}>{analysis.texture}</span>
+                  </div>
+                )}
+                {analysis.hydration !== undefined && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                    <span style={{ opacity: 0.9 }}>Hidrasi</span>
+                    <span style={{ fontWeight: 700 }}>{analysis.hydration}</span>
+                  </div>
+                )}
+              </div>
+
+              <div
+                style={{
+                  fontSize: 10,
+                  opacity: 0.75,
+                  textAlign: 'center',
+                  borderTop: '1px solid rgba(255,255,255,0.3)',
+                  paddingTop: 8,
+                }}
+              >
+                AI Beauty Coach kamu
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </main>
   );
 }

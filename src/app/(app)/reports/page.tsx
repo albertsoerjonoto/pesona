@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDesktopLayout } from '@/hooks/useDesktopLayout';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { cn } from '@/lib/utils';
+import { shareElementAsCard } from '@/lib/share-card';
 
 interface WeeklyReport {
   period: { start: string; end: string };
@@ -56,34 +57,12 @@ export default function ReportsPage() {
   const handleShare = async () => {
     if (!shareCardRef.current || sharing) return;
     setSharing(true);
-    try {
-      const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(shareCardRef.current, {
-        pixelRatio: 2,
-        backgroundColor: '#CE3D66',
-      });
-
-      if (navigator.share && navigator.canShare) {
-        const blob = await (await fetch(dataUrl)).blob();
-        const file = new File([blob], 'pesona-weekly-report.png', { type: 'image/png' });
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: 'Laporan mingguan Pesona',
-            text: 'Lihat progress kulit kamu minggu ini!',
-          });
-          setSharing(false);
-          return;
-        }
-      }
-
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = 'pesona-weekly-report.png';
-      a.click();
-    } catch {
-      // Fail silently — screenshot is best-effort
-    }
+    await shareElementAsCard(shareCardRef.current, {
+      title: 'Laporan mingguan Pesona',
+      text: 'Lihat progress kulit kamu minggu ini!',
+      filename: 'pesona-weekly-report.png',
+      backgroundColor: '#CE3D66',
+    });
     setSharing(false);
   };
 
