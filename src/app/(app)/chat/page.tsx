@@ -166,15 +166,8 @@ export default function ChatPage() {
       const supabase = createClient();
       const routineType = routineSuggestion.type === 'evening' ? 'evening' : 'morning';
 
-      // Deactivate existing routine of same type
-      await supabase
-        .from('routines')
-        .update({ active: false })
-        .eq('user_id', user.id)
-        .eq('type', routineType)
-        .eq('active', true);
-
-      // Insert new routine with validated steps
+      // Validate steps BEFORE touching the DB — avoid deactivating old
+      // routine if the new one would be empty
       const validatedSteps = steps
         .filter(s => s && typeof s === 'object' && s.product_name)
         .map((s, i) => ({
@@ -191,14 +184,31 @@ export default function ChatPage() {
         return;
       }
 
-      await supabase.from('routines').insert({
-        user_id: user.id,
-        type: routineType,
-        steps: validatedSteps,
-        generated_by: 'ai',
-        active: true,
-        ai_reasoning: 'Generated from chat conversation',
-      });
+      // Insert new routine FIRST — if this fails, old routine stays active
+      const { data: newRoutine, error: insertError } = await supabase
+        .from('routines')
+        .insert({
+          user_id: user.id,
+          type: routineType,
+          steps: validatedSteps,
+          generated_by: 'ai',
+          active: true,
+          ai_reasoning: 'Generated from chat conversation',
+        })
+        .select('id')
+        .single();
+
+      if (insertError || !newRoutine) throw insertError ?? new Error('insert failed');
+
+      // Only after successful insert, deactivate any OTHER active routines
+      // of the same type (exclude the one we just created)
+      await supabase
+        .from('routines')
+        .update({ active: false })
+        .eq('user_id', user.id)
+        .eq('type', routineType)
+        .eq('active', true)
+        .neq('id', newRoutine.id);
 
       showToast('success', `Routine ${routineType === 'morning' ? 'pagi' : 'malam'} tersimpan! 🎉`);
 

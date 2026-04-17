@@ -25,7 +25,14 @@ export default function LogPage() {
   const [saving, setSaving] = useState(false);
   const [calendarData, setCalendarData] = useState<Record<string, { morning: boolean; evening: boolean }>>({});
 
-  const today = new Date().toISOString().split('T')[0];
+  // Use local date (matches DB date column storage and calendar cells)
+  const today = (() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  })();
   const currentRoutine = activeTab === 'morning' ? morningRoutine : eveningRoutine;
   const currentLog = activeTab === 'morning' ? morningLog : eveningLog;
   const steps = (currentRoutine?.steps || []) as RoutineStep[];

@@ -30,10 +30,14 @@ export async function GET(req: NextRequest) {
       .select('*', { count: 'exact' });
 
     // Text search - fuzzy match on name, brand, key_ingredients
+    // Strip PostgREST filter-grammar chars to prevent filter corruption
     if (query) {
-      dbQuery = dbQuery.or(
-        `name.ilike.%${query}%,brand.ilike.%${query}%,key_ingredients.cs.{${query}}`
-      );
+      const safeQuery = query.replace(/[,()\\{}]/g, '');
+      if (safeQuery) {
+        dbQuery = dbQuery.or(
+          `name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%,key_ingredients.cs.{${safeQuery}}`
+        );
+      }
     }
 
     if (category) {

@@ -199,8 +199,17 @@ export async function POST(req: NextRequest) {
 }
 
 async function compressMemory(userId: string, apiKey: string) {
-  const { createClient: createServerClient } = await import('@/lib/supabase/server');
-  const supabase = await createServerClient();
+  // Use service role client — fire-and-forget runs AFTER the response is
+  // sent, so request-scoped cookies() from @/lib/supabase/server would fail.
+  // Service role bypasses RLS, so we MUST filter by user_id explicitly.
+  const { createClient } = await import('@supabase/supabase-js');
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceKey) {
+    console.error('compressMemory: missing Supabase service role config');
+    return;
+  }
+  const supabase = createClient(supabaseUrl, serviceKey);
 
   // Get latest memory timestamp to know where to start
   const { data: lastMemory } = await supabase
@@ -209,7 +218,7 @@ async function compressMemory(userId: string, apiKey: string) {
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   // Get messages to compress (ones not yet in memory)
   let query = supabase
