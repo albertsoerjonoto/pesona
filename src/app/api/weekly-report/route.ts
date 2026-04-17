@@ -167,6 +167,14 @@ export async function GET() {
       score_changes: scoreMetrics,
       ai_report: aiReport,
       checkins,
+      // Daily series for line chart: score per day from analyzed photos
+      photo_timeline: analyzedPhotos.map(p => ({
+        date: typeof p.taken_at === 'string' ? p.taken_at.split('T')[0] : '',
+        overall: (p.ai_analysis as Record<string, number> | null)?.overall_score ?? 0,
+        brightness: (p.ai_analysis as Record<string, number> | null)?.brightness ?? 0,
+        texture: (p.ai_analysis as Record<string, number> | null)?.texture ?? 0,
+        hydration: (p.ai_analysis as Record<string, number> | null)?.hydration ?? 0,
+      })),
     });
   } catch (error) {
     console.error('Weekly report error:', error);

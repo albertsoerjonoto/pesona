@@ -56,15 +56,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Message required' }, { status: 400 });
     }
 
-    // Fetch user context in parallel
-    const [profileRes, skinProfileRes, routinesRes, checkinsRes, historyRes, memoryRes, msgCountRes] = await Promise.all([
+    // Fetch user context in parallel (acts as pre-loaded "tool results")
+    const [profileRes, skinProfileRes, routinesRes, checkinsRes, historyRes, memoryRes, msgCountRes, latestPhotoRes] = await Promise.all([
       supabase.from('profiles').select('display_name, gender, locale, skin_quiz_completed').eq('id', user.id).single(),
       supabase.from('skin_profiles').select('*').eq('user_id', user.id).single(),
       supabase.from('routines').select('*').eq('user_id', user.id).eq('active', true),
-      supabase.from('daily_checkins').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(7),
+      supabase.from('daily_checkins').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(30),
       supabase.from('ai_conversations').select('role, content, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
       supabase.from('coach_memory').select('summary').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3),
       supabase.from('ai_conversations').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+      supabase.from('photo_progress').select('ai_analysis, taken_at').eq('user_id', user.id).not('ai_analysis', 'is', null).order('taken_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
 
     const profile = profileRes.data;
@@ -74,6 +75,39 @@ export async function POST(req: NextRequest) {
     const history = (historyRes.data || []).reverse();
     const memories = memoryRes.data || [];
     const totalMsgCount = msgCountRes.count || 0;
+    const latestPhoto = latestPhotoRes.data;
+
+    // Compute streak from check-ins (consecutive days with any activity)
+    const streak = (() => {
+      if (checkins.length === 0) return 0;
+      let s = 0;
+      const d = new Date();
+      for (const entry of checkins) {
+        const y = d.getFullYear();
+        const mo = String(d.getMonth() + 1).padStart(2, '0');
+        const da = String(d.getDate()).padStart(2, '0');
+        const expected = `${y}-${mo}-${da}`;
+        if (entry.date === expected) {
+          s++;
+          d.setDate(d.getDate() - 1);
+        } else break;
+      }
+      return s;
+    })();
+
+    // Pre-fetch product candidates relevant to user concerns (replaces
+    // tool-based product_lookup — context-free call is more reliable)
+    let productCandidates: Array<{ name: string; brand: string; price_idr: number; category: string; halal_certified: boolean }> = [];
+    if (skinProfile?.concerns && skinProfile.concerns.length > 0 && skinProfile.skin_type) {
+      const { data: candidates } = await supabase
+        .from('products')
+        .select('name, brand, price_idr, category, halal_certified')
+        .contains('suitable_skin_types', [skinProfile.skin_type])
+        .overlaps('addresses_concerns', skinProfile.concerns)
+        .order('rating_avg', { ascending: false, nullsFirst: false })
+        .limit(12);
+      productCandidates = candidates || [];
+    }
 
     // Build context
     let context = '';
@@ -92,9 +126,25 @@ export async function POST(req: NextRequest) {
       routines.forEach(r => {
         context += `  ${r.type}: ${JSON.stringify(r.steps)}\n`;
       });
+    } else {
+      context += `Active Routines: NONE — user may want Sona to generate one\n`;
     }
+    context += `Streak: ${streak} days\n`;
     if (checkins.length > 0) {
-      context += `Recent Check-ins: ${checkins.map(c => `${c.date}: ${c.skin_feeling || 'no feeling'}`).join(', ')}\n`;
+      context += `Recent Check-ins (last 7): ${checkins.slice(0, 7).map(c => `${c.date}: ${c.skin_feeling || 'no feeling'}`).join(', ')}\n`;
+    }
+    if (latestPhoto?.ai_analysis) {
+      const a = latestPhoto.ai_analysis as Record<string, unknown>;
+      context += `Latest skin analysis (${latestPhoto.taken_at?.toString().split('T')[0]}): overall ${a.overall_score}, brightness ${a.brightness}, texture ${a.texture}, hydration ${a.hydration}\n`;
+      if (Array.isArray(a.concerns_detected) && a.concerns_detected.length > 0) {
+        context += `Concerns detected in photo: ${a.concerns_detected.join(', ')}\n`;
+      }
+    }
+    if (productCandidates.length > 0) {
+      context += `\nAvailable products for user's skin type + concerns (use these names in product_recommendations):\n`;
+      productCandidates.forEach(p => {
+        context += `  - ${p.name} (${p.brand}) — Rp ${p.price_idr.toLocaleString('id-ID')}${p.halal_certified ? ' [halal]' : ''}\n`;
+      });
     }
 
     // Add compressed memory summaries for longer context

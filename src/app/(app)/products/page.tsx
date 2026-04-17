@@ -45,6 +45,41 @@ export default function ProductsPage() {
   const [category, setCategory] = useState<ProductCategory | 'all'>('all');
   const [skinFilter, setSkinFilter] = useState<SkinType | 'all'>('all');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [comparing, setComparing] = useState(false);
+  const [compareResult, setCompareResult] = useState<null | {
+    summary: string;
+    best_for: Record<string, string>;
+    pros_cons: Array<{ name: string; pros: string[]; cons: string[] }>;
+    recommendation: string;
+  }>(null);
+
+  const toggleCompare = (productId: string) => {
+    setCompareIds(prev => {
+      if (prev.includes(productId)) return prev.filter(id => id !== productId);
+      if (prev.length >= 3) return prev; // max 3
+      return [...prev, productId];
+    });
+  };
+
+  const runCompare = async () => {
+    if (compareIds.length < 2 || comparing) return;
+    setComparing(true);
+    try {
+      const res = await fetch('/api/compare-products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productIds: compareIds }),
+      });
+      if (res.ok) {
+        setCompareResult(await res.json());
+      }
+    } catch {
+      // silent
+    }
+    setComparing(false);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -77,7 +112,21 @@ export default function ProductsPage() {
     <div className={cn('max-w-lg mx-auto px-4 pb-24', isExpanded && 'lg:max-w-4xl lg:px-8')}>
       {/* Header */}
       <div className="sticky top-0 z-20 bg-bg pb-3 -mx-4 px-4 pt-6">
-        <h1 className="text-xl font-bold text-text-primary mb-3">Produk Skincare</h1>
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-xl font-bold text-text-primary">Produk Skincare</h1>
+          <button
+            onClick={() => {
+              setCompareMode(m => !m);
+              if (compareMode) setCompareIds([]);
+            }}
+            className={cn(
+              'px-3 py-1.5 rounded-full text-xs font-medium transition-all',
+              compareMode ? 'bg-accent text-accent-fg' : 'bg-surface border border-border text-text-secondary'
+            )}
+          >
+            {compareMode ? '✓ Compare' : '⚖️ Compare'}
+          </button>
+        </div>
 
         {/* Search */}
         <div className="relative mb-3">
@@ -145,29 +194,130 @@ export default function ProductsPage() {
           <p className="text-sm text-text-secondary">Tidak ada produk yang cocok</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {filtered.map(product => (
-            <button
-              key={product.id}
-              onClick={() => setSelectedProduct(product)}
-              className="w-full bg-surface rounded-xl p-3 border border-border hover:border-accent-border transition-all text-left"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-text-primary truncate">{product.name}</p>
-                  <p className="text-xs text-text-secondary">{product.brand}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs font-medium text-accent-text">{formatPrice(product.price_idr)}</span>
-                    {product.halal_certified && <span className="text-[10px] bg-positive-surface text-positive-text px-1.5 py-0.5 rounded">Halal</span>}
-                    {product.bpom_registered && <span className="text-[10px] bg-accent-surface text-accent-text px-1.5 py-0.5 rounded">BPOM</span>}
+        <div className="space-y-2 pb-20">
+          {filtered.map(product => {
+            const isSelected = compareIds.includes(product.id);
+            return (
+              <button
+                key={product.id}
+                onClick={() => compareMode ? toggleCompare(product.id) : setSelectedProduct(product)}
+                className={cn(
+                  'w-full bg-surface rounded-xl p-3 border transition-all text-left',
+                  isSelected ? 'border-accent ring-2 ring-accent/30' : 'border-border hover:border-accent-border'
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  {compareMode && (
+                    <div className={cn(
+                      'w-5 h-5 rounded border-2 shrink-0 mt-0.5 flex items-center justify-center',
+                      isSelected ? 'bg-accent border-accent' : 'border-border-strong'
+                    )}>
+                      {isSelected && (
+                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-text-primary truncate">{product.name}</p>
+                    <p className="text-xs text-text-secondary">{product.brand}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs font-medium text-accent-text">{formatPrice(product.price_idr)}</span>
+                      {product.halal_certified && <span className="text-[10px] bg-positive-surface text-positive-text px-1.5 py-0.5 rounded">Halal</span>}
+                      {product.bpom_registered && <span className="text-[10px] bg-accent-surface text-accent-text px-1.5 py-0.5 rounded">BPOM</span>}
+                    </div>
                   </div>
+                  <span className="text-xs text-text-tertiary capitalize bg-surface-secondary px-2 py-1 rounded-lg shrink-0">
+                    {product.category.replace('_', ' ')}
+                  </span>
                 </div>
-                <span className="text-xs text-text-tertiary capitalize bg-surface-secondary px-2 py-1 rounded-lg shrink-0">
-                  {product.category.replace('_', ' ')}
-                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Compare floating bar */}
+      {compareMode && compareIds.length > 0 && (
+        <div className="fixed bottom-20 left-0 right-0 z-30 px-4 pb-2 pointer-events-none">
+          <div className="max-w-lg mx-auto bg-accent text-accent-fg rounded-2xl p-3 shadow-xl pointer-events-auto animate-slide-up">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold">{compareIds.length}/3 dipilih</p>
+                <p className="text-[10px] opacity-80">{compareIds.length < 2 ? 'Pilih minimal 2' : 'Siap bandingkan'}</p>
               </div>
-            </button>
-          ))}
+              <button
+                onClick={runCompare}
+                disabled={compareIds.length < 2 || comparing}
+                className="px-4 py-2 bg-white text-accent font-semibold rounded-xl text-xs disabled:opacity-50"
+              >
+                {comparing ? 'Analisis...' : 'Bandingkan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Compare Result Modal */}
+      {compareResult && (
+        <div className="fixed inset-0 z-50 bg-overlay-dialog flex items-center justify-center p-4" onClick={() => setCompareResult(null)}>
+          <div className="bg-bg rounded-2xl max-w-sm w-full max-h-[85vh] overflow-y-auto animate-slide-up" onClick={e => e.stopPropagation()}>
+            <div className="p-5">
+              <div className="flex items-start justify-between mb-3">
+                <h2 className="text-lg font-bold text-text-primary">Perbandingan Produk</h2>
+                <button onClick={() => setCompareResult(null)} className="text-text-tertiary p-1">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {compareResult.summary && (
+                <p className="text-sm text-text-primary mb-4">{compareResult.summary}</p>
+              )}
+
+              {compareResult.pros_cons.map((pc, i) => (
+                <div key={i} className="bg-surface rounded-xl p-3 mb-2 border border-border">
+                  <p className="text-sm font-semibold text-accent-text mb-2">{pc.name}</p>
+                  {pc.pros?.length > 0 && (
+                    <div className="mb-1.5">
+                      <p className="text-[10px] font-medium text-positive-text mb-0.5">+ Kelebihan</p>
+                      <ul className="text-xs text-text-secondary space-y-0.5">
+                        {pc.pros.map((p, j) => <li key={j}>• {p}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {pc.cons?.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-medium text-danger-text mb-0.5">- Kekurangan</p>
+                      <ul className="text-xs text-text-secondary space-y-0.5">
+                        {pc.cons.map((c, j) => <li key={j}>• {c}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {compareResult.recommendation && (
+                <div className="bg-accent-surface rounded-xl p-3 mt-3">
+                  <p className="text-xs font-semibold text-accent-text mb-1">Rekomendasi Sona</p>
+                  <p className="text-sm text-text-primary">{compareResult.recommendation}</p>
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  setCompareResult(null);
+                  setCompareIds([]);
+                  setCompareMode(false);
+                }}
+                className="w-full mt-4 py-2.5 bg-accent text-accent-fg font-semibold rounded-xl text-sm"
+              >
+                Selesai
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

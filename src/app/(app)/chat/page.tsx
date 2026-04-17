@@ -25,7 +25,7 @@ interface ChatMsg {
 const QUICK_CHIPS = [
   { key: 'chipRoutine', text: 'Routine pagi' },
   { key: 'chipSerum', text: 'Rekomendasi serum' },
-  { key: 'chipOily', text: 'Tips kulit berminyak' },
+  { key: 'chipPhoto', text: 'Gimana kondisi foto terakhir aku?' },
   { key: 'chipProduct', text: 'Cek produk' },
 ];
 

@@ -634,6 +634,7 @@ export const translations: Translations = {
   'chat.chipSerum': { id: 'Rekomendasi serum', en: 'Serum recs' },
   'chat.chipOily': { id: 'Tips kulit berminyak', en: 'Oily skin tips' },
   'chat.chipProduct': { id: 'Cek produk', en: 'Check product' },
+  'chat.chipPhoto': { id: 'Gimana kondisi foto terakhir aku?', en: 'How does my latest photo look?' },
   'chat.buyShopee': { id: 'Beli di Shopee', en: 'Buy on Shopee' },
   'chat.addToRoutine': { id: 'Tambah ke Routine', en: 'Add to Routine' },
   'chat.useRoutine': { id: 'Pakai Routine Ini', en: 'Use This Routine' },
