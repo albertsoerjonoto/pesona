@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { renderWithProviders, mockSupabaseClient } from './helpers';
 import DashboardPage from '@/app/(app)/dashboard/page';
 

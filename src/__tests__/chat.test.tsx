@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderWithProviders, mockSupabaseClient } from './helpers';
+import { renderWithProviders } from './helpers';
 import ChatPage from '@/app/(app)/chat/page';
 
 beforeEach(() => {

@@ -84,7 +84,7 @@ export default function ProductsPage() {
   });
 
   return (
-    <div className={cn('max-w-lg mx-auto px-4 pb-24', isExpanded && 'lg:max-w-4xl lg:px-8')}>
+    <main className={cn('max-w-lg mx-auto px-4 pb-24', isExpanded && 'lg:max-w-4xl lg:px-8')}>
       {/* Header */}
       <div className="sticky top-0 z-20 bg-bg pb-3 -mx-4 px-4 pt-6">
         <h1 className="text-xl font-bold text-text-primary mb-3">{t('product.title')}</h1>
@@ -295,6 +295,6 @@ export default function ProductsPage() {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

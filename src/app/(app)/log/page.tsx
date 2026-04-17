@@ -122,35 +122,35 @@ export default function LogPage() {
 
   if (loading) {
     return (
-      <div className={cn('max-w-lg mx-auto px-4 pb-24 pt-6', isExpanded && 'lg:max-w-4xl lg:px-8')}>
+      <main className={cn('max-w-lg mx-auto px-4 pb-24 pt-6', isExpanded && 'lg:max-w-4xl lg:px-8')} aria-busy="true">
         <div className="h-8 w-32 bg-surface rounded-lg animate-shimmer mb-4" />
         <div className="h-12 bg-surface rounded-xl animate-shimmer mb-4" />
         <div className="space-y-3">
           {[1, 2, 3].map(i => (<div key={i} className="h-20 bg-surface rounded-2xl animate-shimmer" />))}
         </div>
-      </div>
+      </main>
     );
   }
 
   if (error) {
     return (
-      <div className={cn('max-w-lg mx-auto px-4 pb-24 pt-20 text-center', isExpanded && 'lg:max-w-4xl lg:px-8')}>
-        <div className="bg-surface rounded-2xl p-8">
-          <div className="text-4xl mb-4">😵</div>
+      <main className={cn('max-w-lg mx-auto px-4 pb-24 pt-20 text-center', isExpanded && 'lg:max-w-4xl lg:px-8')}>
+        <div className="bg-surface rounded-2xl p-8" role="alert">
+          <div className="text-4xl mb-4" aria-hidden="true">😵</div>
           <p className="text-sm text-text-secondary mb-4">{t('routine.loadError')}</p>
           <button
             onClick={() => load()}
-            className="px-6 py-2.5 bg-accent text-accent-fg font-medium rounded-xl hover:bg-accent-hover transition-all"
+            className="px-6 py-2.5 bg-accent text-accent-fg font-medium rounded-xl hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 transition-all"
           >
             {t('error.retry')}
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className={cn('max-w-lg mx-auto px-4 pb-24', isExpanded && 'lg:max-w-4xl lg:px-8')}>
+    <main className={cn('max-w-lg mx-auto px-4 pb-24', isExpanded && 'lg:max-w-4xl lg:px-8')}>
       {/* Header */}
       <div className="sticky top-0 z-20 bg-bg pb-4 -mx-4 px-4 pt-6">
         <h1 className="text-xl font-bold text-text-primary mb-4">{t('nav.log')}</h1>
@@ -275,6 +275,6 @@ export default function LogPage() {
           </button>
         </div>
       )}
-    </div>
+    </main>
   );
 }

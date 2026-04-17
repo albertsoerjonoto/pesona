@@ -47,6 +47,7 @@ export default function ChatPage() {
   // Load message history
   useEffect(() => {
     if (!user) return;
+    let isMounted = true;
     const load = async () => {
       const supabase = createClient();
       const { data } = await supabase
@@ -56,6 +57,7 @@ export default function ChatPage() {
         .order('created_at', { ascending: true })
         .limit(50);
 
+      if (!isMounted) return;
       if (data) {
         setMessages(data.map(d => ({
           id: d.id,
@@ -68,6 +70,7 @@ export default function ChatPage() {
       setLoaded(true);
     };
     load();
+    return () => { isMounted = false; };
   }, [user]);
 
   // Auto-scroll on new messages
