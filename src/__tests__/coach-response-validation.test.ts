@@ -1,4 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import {
+  validateAIOutput,
+  ESCALATION_TEMPLATE,
+  FORBIDDEN_TERMS,
+  scrubForbiddenTerms,
+} from '@/lib/ai/validate';
 
 /**
  * Tests for the coach API response validation logic.
@@ -115,5 +121,95 @@ describe('Coach response validation', () => {
     const result = validateCoachResponse('');
     expect(result.message).toBe('');
     expect(result.routine_suggestion).toBeNull();
+  });
+});
+
+describe('Clinical-term validator on coach output', () => {
+  // Helper that mirrors coach/route.ts: flatten all user-visible fields into
+  // one string so the validator sees routine_suggestion + product_recommendations
+  // + daily_tip, not just message.
+  const combined = (r: {
+    message: string;
+    daily_tip?: string | null;
+    routine_suggestion?: unknown;
+    product_recommendations?: unknown;
+  }) =>
+    [
+      r.message,
+      r.daily_tip ?? '',
+      JSON.stringify(r.routine_suggestion ?? ''),
+      JSON.stringify(r.product_recommendations ?? ''),
+    ].join(' ');
+
+  it('catches a clinical term in the message', () => {
+    const out = { message: 'Kamu punya rosacea ringan', daily_tip: null };
+    expect(validateAIOutput(combined(out)).valid).toBe(false);
+  });
+
+  it('catches a clinical term hidden in daily_tip', () => {
+    const out = { message: 'Semangat!', daily_tip: 'Hati-hati dengan melasma' };
+    const r = validateAIOutput(combined(out));
+    expect(r.valid).toBe(false);
+    expect(r.violations).toContain('melasma');
+  });
+
+  it('catches a clinical term inside routine_suggestion JSON', () => {
+    const out = {
+      message: 'Ini routine kamu',
+      routine_suggestion: { type: 'morning', steps: [{ instruction: 'for eczema' }] },
+    };
+    const r = validateAIOutput(combined(out));
+    expect(r.valid).toBe(false);
+    expect(r.violations).toContain('eczema');
+  });
+
+  it('catches a clinical term inside product_recommendations JSON', () => {
+    const out = {
+      message: 'Rekomendasi',
+      product_recommendations: [{ name: 'X', brand: 'Y', reason: 'helps with psoriasis' }],
+    };
+    const r = validateAIOutput(combined(out));
+    expect(r.valid).toBe(false);
+    expect(r.violations).toContain('psoriasis');
+  });
+
+  it('passes when every field uses Bahasa user-friendly terms', () => {
+    const out = {
+      message: 'Kulit kamu ada sedikit kemerahan dan bruntusan',
+      daily_tip: 'Pakai sunscreen ya',
+      routine_suggestion: {
+        type: 'evening',
+        steps: [{ instruction: 'Niacinamide bantu flek hitam' }],
+      },
+      product_recommendations: [{ name: 'X', brand: 'Y', reason: 'cocok untuk kulit sensitif' }],
+    };
+    expect(validateAIOutput(combined(out)).valid).toBe(true);
+  });
+});
+
+describe('Scrubber + escalation template', () => {
+  it('replaces forbidden terms with "kondisi kulit"', () => {
+    const out = scrubForbiddenTerms('She has rosacea and melasma.', ['rosacea', 'melasma']);
+    expect(out).toBe('She has kondisi kulit and kondisi kulit.');
+  });
+
+  it('is a no-op when violations is empty', () => {
+    expect(scrubForbiddenTerms('no terms here', [])).toBe('no terms here');
+  });
+
+  it('escalation template references Haloskin and price band per spec §5.5', () => {
+    expect(ESCALATION_TEMPLATE).toMatch(/Haloskin/);
+    expect(ESCALATION_TEMPLATE).toMatch(/Halodoc/);
+    expect(ESCALATION_TEMPLATE).toMatch(/25\.000/);
+    expect(ESCALATION_TEMPLATE).toMatch(/dermatologist/i);
+  });
+
+  it('escalation template itself passes the validator', () => {
+    // The fallback we hand back must not itself contain forbidden terms.
+    expect(validateAIOutput(ESCALATION_TEMPLATE).valid).toBe(true);
+  });
+
+  it('FORBIDDEN_TERMS is frozen-tuple-like and stable (24 entries per Build Spec §5.3)', () => {
+    expect(FORBIDDEN_TERMS.length).toBe(24);
   });
 });

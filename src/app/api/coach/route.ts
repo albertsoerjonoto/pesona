@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@/lib/supabase/server';
+import {
+  validateAIOutput,
+  ESCALATION_TEMPLATE,
+} from '@/lib/ai/validate';
 
 export const maxDuration = 60;
 
@@ -182,23 +186,7 @@ export async function POST(req: NextRequest) {
       userParts.push({ text: `Context about this user:\n${context}\n\nUser message: ${message}` });
     }
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        ...geminiHistory,
-        { role: 'user', parts: userParts },
-      ],
-      config: {
-        systemInstruction: SYSTEM_PROMPT,
-        temperature: 0.8,
-        maxOutputTokens: 2048,
-        responseMimeType: 'application/json',
-      },
-    });
-
-    const rawText = response.text || '';
-
-    // Parse and validate JSON response
+    // Parsed response shape — also used by the retry loop
     type ProductRec = {
       name: string;
       brand: string;
@@ -212,27 +200,89 @@ export async function POST(req: NextRequest) {
       halal_certified?: boolean;
       image_url?: string;
     };
-    let parsed: {
+    type Parsed = {
       message: string;
       routine_suggestion?: { type: string; steps: unknown[] } | null;
       product_recommendations?: ProductRec[] | null;
       daily_tip?: string | null;
+      escalation?: { needed: boolean; reason: string } | null;
     };
-    try {
-      const raw = JSON.parse(rawText);
-      // Validate shape — only accept expected fields with correct types
-      parsed = {
-        message: typeof raw.message === 'string' ? raw.message : rawText,
-        routine_suggestion: raw.routine_suggestion && typeof raw.routine_suggestion === 'object' && typeof raw.routine_suggestion.type === 'string'
-          ? { type: raw.routine_suggestion.type, steps: Array.isArray(raw.routine_suggestion.steps) ? raw.routine_suggestion.steps : [] }
-          : null,
-        product_recommendations: Array.isArray(raw.product_recommendations)
-          ? raw.product_recommendations.filter((r: unknown) => r && typeof r === 'object' && 'name' in (r as Record<string, unknown>)).slice(0, 10)
-          : null,
-        daily_tip: typeof raw.daily_tip === 'string' ? raw.daily_tip : null,
-      };
-    } catch {
-      parsed = { message: rawText, routine_suggestion: null, product_recommendations: null, daily_tip: null };
+
+    const callGemini = async (systemAppend?: string): Promise<{ rawText: string; parsed: Parsed }> => {
+      const resp = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          ...geminiHistory,
+          { role: 'user', parts: userParts },
+        ],
+        config: {
+          systemInstruction: systemAppend
+            ? `${SYSTEM_PROMPT}\n\n${systemAppend}`
+            : SYSTEM_PROMPT,
+          temperature: 0.8,
+          maxOutputTokens: 2048,
+          responseMimeType: 'application/json',
+        },
+      });
+      const rawText = resp.text || '';
+      let parsed: Parsed;
+      try {
+        const raw = JSON.parse(rawText);
+        parsed = {
+          message: typeof raw.message === 'string' ? raw.message : rawText,
+          routine_suggestion: raw.routine_suggestion && typeof raw.routine_suggestion === 'object' && typeof raw.routine_suggestion.type === 'string'
+            ? { type: raw.routine_suggestion.type, steps: Array.isArray(raw.routine_suggestion.steps) ? raw.routine_suggestion.steps : [] }
+            : null,
+          product_recommendations: Array.isArray(raw.product_recommendations)
+            ? raw.product_recommendations.filter((r: unknown) => r && typeof r === 'object' && 'name' in (r as Record<string, unknown>)).slice(0, 10)
+            : null,
+          daily_tip: typeof raw.daily_tip === 'string' ? raw.daily_tip : null,
+        };
+      } catch {
+        parsed = { message: rawText, routine_suggestion: null, product_recommendations: null, daily_tip: null };
+      }
+      return { rawText, parsed };
+    };
+
+    // First call
+    let { rawText, parsed } = await callGemini();
+
+    // Belt-and-suspenders clinical-term check (Build Spec §5.3 / §7.3):
+    // validate every user-visible field, retry once with a stricter prompt,
+    // and fall back to the escalation template on second failure.
+    const combinedText = (text: Parsed) =>
+      [
+        text.message,
+        text.daily_tip ?? '',
+        JSON.stringify(text.routine_suggestion ?? ''),
+        JSON.stringify(text.product_recommendations ?? ''),
+      ].join(' ');
+
+    let validation = validateAIOutput(combinedText(parsed));
+    if (!validation.valid) {
+      const retry = await callGemini(
+        `STRICT: do not use ANY of the following clinical terms in your response: ${validation.violations.join(', ')}. Use user-friendly Bahasa Indonesia alternatives (e.g. "kemerahan", "flek hitam", "bruntusan", "kulit kering").`,
+      );
+      validation = validateAIOutput(combinedText(retry.parsed));
+      if (validation.valid) {
+        rawText = retry.rawText;
+        parsed = retry.parsed;
+      } else {
+        // Both attempts tripped the validator — fall back to the spec §5.5
+        // escalation template and drop any routine/product output since it
+        // was generated under the tainted run.
+        parsed = {
+          message: ESCALATION_TEMPLATE,
+          routine_suggestion: null,
+          product_recommendations: null,
+          daily_tip: null,
+          escalation: {
+            needed: true,
+            reason: `clinical-term-fallback: ${validation.violations.join(', ')}`,
+          },
+        };
+        rawText = JSON.stringify(parsed);
+      }
     }
 
     // Enrich product_recommendations with data from products table
