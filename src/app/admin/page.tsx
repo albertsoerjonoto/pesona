@@ -4,6 +4,12 @@ import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
+// Auth constants. Bootstrap via ?secret= query param; after auth, we set a
+// same-site http-only cookie scoped to /admin and redirect to strip the URL.
+const ADMIN_COOKIE_NAME = 'pesona_admin';
+const ADMIN_COOKIE_MAX_AGE_SEC = 60 * 60 * 8; // 8 hours
+const ADMIN_QUERY_PARAM = 'secret';
+
 export const metadata = {
   title: 'Admin Metrics - Pesona',
   robots: 'noindex, nofollow',
@@ -43,13 +49,16 @@ async function getMetrics() {
   const supabase = createClient(supabaseUrl, serviceKey);
   const today = new Date().toISOString().split('T')[0];
 
-  // Run all queries in parallel
+  // Run all queries in parallel. MRR uses a Postgres SUM RPC to avoid
+  // loading every paying subscription into app memory (scales poorly).
   const [
     totalUsersResult,
     payingUsersResult,
     mrrResult,
     signupsTodayResult,
     activeRoutinesResult,
+    photosResult,
+    conversationsResult,
   ] = await Promise.all([
     // Total users
     supabase.from('profiles').select('id', { count: 'exact', head: true }),
@@ -61,12 +70,8 @@ async function getMetrics() {
       .eq('status', 'active')
       .neq('tier', 'free'),
 
-    // MRR (sum price_idr from active subscriptions)
-    supabase
-      .from('subscriptions')
-      .select('price_idr')
-      .eq('status', 'active')
-      .neq('tier', 'free'),
+    // MRR via DB-side SUM (see migration 20260417000007)
+    supabase.rpc('compute_mrr'),
 
     // Signups today
     supabase
@@ -80,13 +85,20 @@ async function getMetrics() {
       .from('routines')
       .select('id', { count: 'exact', head: true })
       .eq('is_active', true),
+
+    // Photos uploaded (engagement metric)
+    supabase.from('photo_progress').select('id', { count: 'exact', head: true }),
+
+    // AI conversations (engagement metric)
+    supabase.from('ai_conversations').select('id', { count: 'exact', head: true }),
   ]);
 
   const totalUsers = totalUsersResult.count ?? 0;
   const payingUsers = payingUsersResult.count ?? 0;
-  const mrr = mrrResult.data
-    ? mrrResult.data.reduce((sum: number, s: { price_idr: number }) => sum + (s.price_idr || 0), 0)
-    : 0;
+  // mrrResult.data is the bigint returned by compute_mrr(). Supabase returns it
+  // as a number for small values, string for large — normalize.
+  const mrrRaw = mrrResult.data;
+  const mrr = typeof mrrRaw === 'string' ? parseInt(mrrRaw, 10) : (mrrRaw ?? 0);
   const signupsToday = signupsTodayResult.count ?? 0;
   const activeRoutines = activeRoutinesResult.count ?? 0;
 
@@ -96,6 +108,8 @@ async function getMetrics() {
     mrr,
     signupsToday,
     activeRoutines,
+    totalPhotos: photosResult.count ?? 0,
+    totalConversations: conversationsResult.count ?? 0,
     conversionRate: totalUsers > 0 ? ((payingUsers / totalUsers) * 100).toFixed(1) : '0.0',
   };
 }
@@ -112,8 +126,8 @@ export default async function AdminMetricsPage({
   // Fall back to ?secret= query param for initial bootstrap; when correct,
   // we set the cookie and strip the query.
   const cookieStore = await cookies();
-  const cookieValue = cookieStore.get('pesona_admin')?.value;
-  const queryValue = params.secret;
+  const cookieValue = cookieStore.get(ADMIN_COOKIE_NAME)?.value;
+  const queryValue = params[ADMIN_QUERY_PARAM];
 
   const isAuthorized = Boolean(
     adminSecret && (cookieValue === adminSecret || queryValue === adminSecret),
@@ -126,12 +140,12 @@ export default async function AdminMetricsPage({
   // If user arrived via query param, set the cookie and clean the URL.
   // adminSecret is guaranteed non-null here because isAuthorized was true.
   if (adminSecret && queryValue === adminSecret && cookieValue !== adminSecret) {
-    cookieStore.set('pesona_admin', adminSecret, {
+    cookieStore.set(ADMIN_COOKIE_NAME, adminSecret, {
       httpOnly: true,
       sameSite: 'strict',
       secure: process.env.NODE_ENV === 'production',
       path: '/admin',
-      maxAge: 60 * 60 * 8, // 8 hours
+      maxAge: ADMIN_COOKIE_MAX_AGE_SEC,
     });
     redirect('/admin');
   }
@@ -198,6 +212,16 @@ export default async function AdminMetricsPage({
             label="ARPU"
             value={metrics.payingUsers > 0 ? formatIDR(Math.round(metrics.mrr / metrics.payingUsers)) : '-'}
             sub="per paying user"
+          />
+          <MetricCard
+            label="Photos"
+            value={metrics.totalPhotos.toLocaleString()}
+            sub="skin progress uploads"
+          />
+          <MetricCard
+            label="AI Messages"
+            value={metrics.totalConversations.toLocaleString()}
+            sub="coach conversations"
           />
         </div>
 

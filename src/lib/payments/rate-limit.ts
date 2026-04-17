@@ -52,8 +52,10 @@ export async function checkRateLimit(
   let count = 0;
 
   if (action === 'chat') {
+    // Chat messages are stored in ai_conversations (see migration 105).
+    // Count only user-role rows — assistant replies shouldn't count against limit.
     const { count: msgCount } = await supabase
-      .from('ai_messages')
+      .from('ai_conversations')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('role', 'user')

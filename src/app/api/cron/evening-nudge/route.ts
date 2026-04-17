@@ -10,10 +10,8 @@ export async function GET(req: NextRequest) {
     const result = await queueNudges('pesona_evening_routine');
     return NextResponse.json(result);
   } catch (err) {
+    // Log internally but don't leak details to the (trusted) cron caller.
     console.error('[cron/evening-nudge]', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed' },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }
 }

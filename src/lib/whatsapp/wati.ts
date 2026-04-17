@@ -50,18 +50,27 @@ export async function sendTemplate(
     return { success: false, error: 'API not configured' };
   }
 
-  // Format phone: strip leading 0, add 62 prefix for Indonesia
-  const formattedPhone = phone.startsWith('0')
-    ? '62' + phone.slice(1)
-    : phone.startsWith('+')
-      ? phone.slice(1)
-      : phone;
+  // Format phone: strip leading 0, add 62 prefix for Indonesia.
+  // Strip any non-digit chars first (defensive — rejects '+', spaces, parens).
+  const digitsOnly = phone.replace(/\D/g, '');
+  const formattedPhone = digitsOnly.startsWith('0')
+    ? '62' + digitsOnly.slice(1)
+    : digitsOnly.startsWith('62')
+      ? digitsOnly
+      : digitsOnly.length >= 8
+        ? '62' + digitsOnly
+        : '';
+
+  if (!formattedPhone || formattedPhone.length < 10 || formattedPhone.length > 15) {
+    return { success: false, error: 'Invalid phone format' };
+  }
 
   const templateParams = buildTemplateParams(template, params);
 
   try {
     const res = await fetch(
-      `${WATI_API_URL}/api/v1/sendTemplateMessage?whatsappNumber=${formattedPhone}`,
+      // Phone is digits-only so safe, but we encodeURIComponent defensively.
+      `${WATI_API_URL}/api/v1/sendTemplateMessage?whatsappNumber=${encodeURIComponent(formattedPhone)}`,
       {
         method: 'POST',
         headers: {

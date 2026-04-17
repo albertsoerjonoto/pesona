@@ -52,25 +52,24 @@ export async function queueNudges(template: WatiTemplate): Promise<{
     return { queued: 0, skipped: 0 };
   }
 
-  // Try to insert each nudge individually; the unique index rejects duplicates.
-  // We count inserts vs. rejections. Supabase-JS doesn't expose ON CONFLICT DO
-  // NOTHING directly in insert(), so we emulate via individual inserts with
-  // error suppression. Supabase dedupes by (user_id, template, day-WIB).
-  let queued = 0;
-  let skipped = 0;
-  for (const nudge of nudges) {
-    const { error } = await supabase.from('notifications_queue').insert(nudge);
-    if (error) {
-      // Unique violation = already queued today for this user+template
-      if (error.code === '23505') {
-        skipped++;
-      } else {
-        console.error('[queueNudges] insert failed', nudge.user_id, error);
-      }
-    } else {
-      queued++;
-    }
+  // Bulk upsert with ignoreDuplicates=true. The unique constraint on
+  // (user_id, template, scheduled_day) dedupes at the DB layer — concurrent
+  // cron runs can both attempt this insert; Postgres ON CONFLICT DO NOTHING
+  // silently skips rows that would collide. Single round-trip for N users.
+  const { data: inserted, error: insertError } = await supabase
+    .from('notifications_queue')
+    .upsert(nudges, {
+      onConflict: 'user_id,template,scheduled_day',
+      ignoreDuplicates: true,
+    })
+    .select('id');
+
+  if (insertError) {
+    throw new Error(`Failed to queue nudges: ${insertError.message}`);
   }
+
+  const queued = inserted?.length ?? 0;
+  const skipped = nudges.length - queued;
 
   return { queued, skipped };
 }

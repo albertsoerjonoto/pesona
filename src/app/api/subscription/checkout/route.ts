@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { createClient } from '@/lib/supabase/server';
 import { createSnapTransaction } from '@/lib/payments/midtrans';
 import { TIER_CONFIG, TIER_ORDER, type SubscriptionTier } from '@/lib/payments/tiers';
@@ -49,14 +50,18 @@ export async function POST(req: NextRequest) {
 
     const config = TIER_CONFIG[tier];
     const amount = period === 'annual' ? config.annual_price_idr : config.price_idr;
-    const orderId = `pesona-${tier}-${user.id.slice(0, 8)}-${Date.now()}`;
+    // Include a random suffix so two clicks in the same millisecond don't
+    // produce the same orderId. 8 hex chars = 4 bytes of entropy.
+    const uniqueSuffix = crypto.randomBytes(4).toString('hex');
+    const orderId = `pesona-${tier}-${user.id.slice(0, 8)}-${Date.now()}-${uniqueSuffix}`;
 
-    // Get user profile for customer details
+    // Get user profile for customer details. Use maybeSingle to return null
+    // cleanly rather than throwing on missing row (new user, race, etc.).
     const { data: profile } = await supabase
       .from('profiles')
       .select('display_name, email')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     const snap = await createSnapTransaction({
       order_id: orderId,
