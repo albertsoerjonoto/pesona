@@ -8,6 +8,19 @@
 
 export type SubscriptionTier = 'free' | 'plus' | 'pro' | 'elite';
 
+/**
+ * Canonical tier order (lowest to highest). Used for comparisons,
+ * gating, and downgrade checks. DO NOT redefine this elsewhere.
+ */
+export const TIER_ORDER: readonly SubscriptionTier[] = ['free', 'plus', 'pro', 'elite'] as const;
+
+/**
+ * Canonical subscription status values. Keep in sync with the
+ * CHECK constraint in migration 20260417000004.
+ */
+export const SUBSCRIPTION_STATUSES = ['active', 'pending', 'failed', 'canceled', 'fraud_review'] as const;
+export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+
 export interface TierConfig {
   name: string;
   nameBahasa: string;
@@ -84,8 +97,7 @@ export function meetsMinimumTier(
   userTier: SubscriptionTier,
   requiredTier: SubscriptionTier,
 ): boolean {
-  const order: SubscriptionTier[] = ['free', 'plus', 'pro', 'elite'];
-  return order.indexOf(userTier) >= order.indexOf(requiredTier);
+  return TIER_ORDER.indexOf(userTier) >= TIER_ORDER.indexOf(requiredTier);
 }
 
 /**

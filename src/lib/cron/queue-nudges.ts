@@ -2,10 +2,16 @@ import 'server-only';
 import { createClient as createServerClient } from '@supabase/supabase-js';
 import type { WatiTemplate } from '@/lib/whatsapp/wati';
 
+// Re-export cron auth so existing routes keep working.
+export { isCronAuthorized } from './auth';
+
 /**
  * Queue WhatsApp nudges for all users with phone numbers.
- * Idempotent: will not queue a second nudge with the same template
- * for the same user on the same day.
+ *
+ * Idempotent at the database layer: a unique index on
+ * (user_id, template, day-in-WIB) prevents duplicate inserts.
+ * Concurrent cron runs can both attempt to insert — the second
+ * write gets rejected by the constraint and we ignore it.
  */
 export async function queueNudges(template: WatiTemplate): Promise<{
   queued: number;
@@ -30,23 +36,9 @@ export async function queueNudges(template: WatiTemplate): Promise<{
     return { queued: 0, skipped: 0 };
   }
 
-  // Check existing nudges for today to avoid duplicates
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const userIds = users.map((u) => u.id);
-  const { data: existingNudges } = await supabase
-    .from('notifications_queue')
-    .select('user_id')
-    .eq('template', template)
-    .gte('created_at', todayStart.toISOString())
-    .in('user_id', userIds);
-
-  const alreadyQueued = new Set((existingNudges || []).map((n) => n.user_id));
-
   const now = new Date().toISOString();
   const nudges = users
-    .filter((u) => u.phone && !alreadyQueued.has(u.id))
+    .filter((u) => u.phone)
     .map((u) => ({
       user_id: u.id,
       channel: 'whatsapp',
@@ -56,26 +48,30 @@ export async function queueNudges(template: WatiTemplate): Promise<{
       status: 'pending',
     }));
 
-  if (nudges.length > 0) {
-    const { error: insertError } = await supabase
-      .from('notifications_queue')
-      .insert(nudges);
-    if (insertError) {
-      throw new Error(`Failed to queue nudges: ${insertError.message}`);
+  if (nudges.length === 0) {
+    return { queued: 0, skipped: 0 };
+  }
+
+  // Try to insert each nudge individually; the unique index rejects duplicates.
+  // We count inserts vs. rejections. Supabase-JS doesn't expose ON CONFLICT DO
+  // NOTHING directly in insert(), so we emulate via individual inserts with
+  // error suppression. Supabase dedupes by (user_id, template, day-WIB).
+  let queued = 0;
+  let skipped = 0;
+  for (const nudge of nudges) {
+    const { error } = await supabase.from('notifications_queue').insert(nudge);
+    if (error) {
+      // Unique violation = already queued today for this user+template
+      if (error.code === '23505') {
+        skipped++;
+      } else {
+        console.error('[queueNudges] insert failed', nudge.user_id, error);
+      }
+    } else {
+      queued++;
     }
   }
 
-  return {
-    queued: nudges.length,
-    skipped: alreadyQueued.size,
-  };
+  return { queued, skipped };
 }
 
-/**
- * Verify a cron request has the correct auth header.
- */
-export function isCronAuthorized(authHeader: string | null): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  return authHeader === `Bearer ${secret}`;
-}

@@ -26,15 +26,24 @@ Warm, Bahasa Indonesia native, like a knowledgeable best friend who helps you be
 Phase 1 MVP — skincare-first, targeting Indonesian women. Body/fitness modules come later.
 
 ## Pricing
-- Rp 59,000/month — Basic (skincare routine, AI coach chat, progress photos)
-- Rp 99,000/month — Pro (+ body coaching, advanced skin analysis, product deals)
+Schema supports 4 tiers (Free / Plus / Pro / Elite). UI currently shows 2 paid.
+- Free — `Pesona Coba`: 3 chats/day, 1 photo/week, read-only weekly report preview
+- Rp 59,000/month — `Pesona Plus`: unlimited chat, 3 photos/day, full weekly report
+- Rp 179,000/month — `Pesona Pro`: everything Plus + advanced analysis + priority
+- Rp 499,000/month — `Pesona Glow`: everything Pro + dermatologist video consult
 
 ## App Navigation (Bottom Tabs)
 1. **Home** (`/dashboard`) — Skin profile summary, today's routine, tips
 2. **Routine** (`/log`) — Skincare routine log & tracking
 3. **Coach** (`/chat`) — AI beauty coach (Gemini-powered)
 4. **Progress** (`/friends`) — Photo progress tracking (repurposed route)
-5. **Profile** (`/profile`) — Account settings, preferences
+5. **Profile** (`/profile`) — Account settings, subscription (Langganan), preferences
+
+### Other routes
+- `/terms`, `/privacy` — Bahasa legal pages (UU PDP 27/2022), public
+- `/subscription/checkout`, `/subscription/success`, `/subscription/failed` — Midtrans flow
+- `/admin?secret=$ADMIN_SECRET` — internal metrics dashboard
+- `/offline` — service worker fallback page
 
 ## Commands
 - `npm run dev` — Start dev server (port 3000)
@@ -42,11 +51,27 @@ Phase 1 MVP — skincare-first, targeting Indonesian women. Body/fitness modules
 - `npm run lint` — Lint code
 
 ## Environment Variables
-- `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anonymous key
-- `SUPABASE_SERVICE_ROLE_KEY` — Supabase service role key (server-side only)
-- `GEMINI_API_KEY` — Google Gemini API key (primary LLM for coach chat)
-- `ANTHROPIC_API_KEY` — Anthropic API key (reserved for future background tasks)
+Core:
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- `GEMINI_API_KEY` — primary LLM for coach chat
+- `ANTHROPIC_API_KEY` — reserved for future background tasks
+
+Payments (Midtrans):
+- `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, `MIDTRANS_IS_PRODUCTION`
+
+Analytics & monitoring:
+- `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`
+- `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`
+
+WhatsApp (Wati), admin, cron:
+- `WATI_API_KEY`, `WATI_API_URL`
+- `ADMIN_SECRET` — required to access `/admin`
+- `CRON_SECRET` — required for Vercel cron routes
+
+App:
+- `NEXT_PUBLIC_APP_URL` — e.g. `https://pesona.io`
+
+See `docs/infra.md` for full setup.
 
 ## Conventions
 - Use `'use client'` only when component needs browser APIs or hooks

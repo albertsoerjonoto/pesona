@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createSnapTransaction } from '@/lib/payments/midtrans';
-import { TIER_CONFIG, type SubscriptionTier } from '@/lib/payments/tiers';
+import { TIER_CONFIG, TIER_ORDER, type SubscriptionTier } from '@/lib/payments/tiers';
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,8 +39,7 @@ export async function POST(req: NextRequest) {
       existing.current_period_end &&
       new Date(existing.current_period_end) > new Date()
     ) {
-      const tierOrder = ['free', 'plus', 'pro', 'elite'];
-      if (tierOrder.indexOf(tier) < tierOrder.indexOf(existing.tier)) {
+      if (TIER_ORDER.indexOf(tier) < TIER_ORDER.indexOf(existing.tier as SubscriptionTier)) {
         return NextResponse.json(
           { error: 'Cannot downgrade active subscription' },
           { status: 409 },
@@ -67,18 +66,38 @@ export async function POST(req: NextRequest) {
       item_name: `${config.nameBahasa} (${period === 'annual' ? 'Tahunan' : 'Bulanan'})`,
     });
 
-    // Create pending subscription row (idempotent by user_id)
-    await supabase.from('subscriptions').upsert(
-      {
-        user_id: user.id,
-        tier,
-        status: 'pending',
-        billing_period: period,
-        price_idr: amount,
-        midtrans_order_id: orderId,
-      },
-      { onConflict: 'user_id' },
-    );
+    // Preserve an active subscription during upgrade flow: only overwrite
+    // tier/status/billing_period/price_idr when there is NO currently-active
+    // paid subscription. For active users, we only record the pending order_id
+    // so the webhook can still look up the row by order_id and apply the upgrade
+    // when Midtrans confirms payment — without revoking access in the interim.
+    const hasActivePaidSub =
+      existing &&
+      existing.status === 'active' &&
+      existing.tier !== 'free' &&
+      existing.current_period_end &&
+      new Date(existing.current_period_end) > new Date();
+
+    if (hasActivePaidSub) {
+      // Active user upgrading: keep active tier/status, just stamp the new order_id
+      await supabase
+        .from('subscriptions')
+        .update({ midtrans_order_id: orderId })
+        .eq('user_id', user.id);
+    } else {
+      // No active sub: standard pending upsert
+      await supabase.from('subscriptions').upsert(
+        {
+          user_id: user.id,
+          tier,
+          status: 'pending',
+          billing_period: period,
+          price_idr: amount,
+          midtrans_order_id: orderId,
+        },
+        { onConflict: 'user_id' },
+      );
+    }
 
     return NextResponse.json({
       token: snap.token,

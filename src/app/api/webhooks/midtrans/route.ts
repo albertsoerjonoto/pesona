@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@supabase/supabase-js';
 import { verifySignature } from '@/lib/payments/midtrans';
+import { validateNotification } from '@/lib/payments/webhook-logic';
 import { trackServerEvent, shutdownPostHog } from '@/lib/analytics/posthog-server';
+
+// Re-export types + pure functions for test access
+export { validateNotification, decideWebhookState } from '@/lib/payments/webhook-logic';
+export type { MidtransNotification, WebhookDecision } from '@/lib/payments/webhook-logic';
 
 // Use service role for webhook — not user-scoped
 function getServiceClient() {
@@ -11,26 +16,6 @@ function getServiceClient() {
   );
 }
 
-// Validate required fields on the notification payload.
-function validateNotification(n: unknown): n is {
-  order_id: string;
-  status_code: string;
-  gross_amount: string;
-  signature_key: string;
-  transaction_status: string;
-  transaction_id?: string;
-  fraud_status?: string;
-} {
-  if (!n || typeof n !== 'object') return false;
-  const obj = n as Record<string, unknown>;
-  return (
-    typeof obj.order_id === 'string' && obj.order_id.length > 0 &&
-    typeof obj.status_code === 'string' && obj.status_code.length > 0 &&
-    typeof obj.gross_amount === 'string' && obj.gross_amount.length > 0 &&
-    typeof obj.signature_key === 'string' && obj.signature_key.length > 0 &&
-    typeof obj.transaction_status === 'string' && obj.transaction_status.length > 0
-  );
-}
 
 export async function POST(req: NextRequest) {
   let notification: unknown;
@@ -90,6 +75,11 @@ export async function POST(req: NextRequest) {
           .from('subscriptions')
           .update({ status: 'fraud_review' })
           .eq('midtrans_order_id', orderId);
+        trackServerEvent(existing.user_id, 'subscription_fraud_review', {
+          tier: existing.tier,
+          order_id: orderId,
+        });
+        await shutdownPostHog();
         return NextResponse.json({ status: 'fraud_review' });
       }
 
@@ -136,6 +126,12 @@ export async function POST(req: NextRequest) {
         .from('subscriptions')
         .update({ status: 'failed' })
         .eq('midtrans_order_id', orderId);
+      trackServerEvent(existing.user_id, 'subscription_failed', {
+        tier: existing.tier,
+        order_id: orderId,
+        reason: transactionStatus,
+      });
+      await shutdownPostHog();
       return NextResponse.json({ status: 'failed' });
     }
 

@@ -18,6 +18,8 @@ export type PesonaEvent =
   | { event: 'paywall_dismissed'; properties: { dismissed_at_tier: string } }
   | { event: 'subscription_started'; properties: { tier: string; price_idr: number; channel: 'web' | 'ios' | 'android' } }
   | { event: 'subscription_canceled'; properties: { tier: string; days_active: number; reason?: string } }
+  | { event: 'subscription_fraud_review'; properties: { tier: string; order_id: string } }
+  | { event: 'subscription_failed'; properties: { tier: string; order_id: string; reason: string } }
   | { event: 'affiliate_click'; properties: { product_id: string; source: string; destination: string } }
   | { event: 'weekly_report_generated'; properties: { brightness_delta: number; redness_delta: number; breakout_delta: number } }
   | { event: 'weekly_report_opened'; properties: { days_since_report: number } }

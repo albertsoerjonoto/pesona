@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
@@ -107,8 +108,32 @@ export default async function AdminMetricsPage({
   const params = await searchParams;
   const adminSecret = process.env.ADMIN_SECRET;
 
-  if (!adminSecret || params.secret !== adminSecret) {
+  // Prefer an HTTP-only cookie (safer — no leak to logs/Referer/history).
+  // Fall back to ?secret= query param for initial bootstrap; when correct,
+  // we set the cookie and strip the query.
+  const cookieStore = await cookies();
+  const cookieValue = cookieStore.get('pesona_admin')?.value;
+  const queryValue = params.secret;
+
+  const isAuthorized = Boolean(
+    adminSecret && (cookieValue === adminSecret || queryValue === adminSecret),
+  );
+
+  if (!isAuthorized) {
     redirect('/');
+  }
+
+  // If user arrived via query param, set the cookie and clean the URL.
+  // adminSecret is guaranteed non-null here because isAuthorized was true.
+  if (adminSecret && queryValue === adminSecret && cookieValue !== adminSecret) {
+    cookieStore.set('pesona_admin', adminSecret, {
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/admin',
+      maxAge: 60 * 60 * 8, // 8 hours
+    });
+    redirect('/admin');
   }
 
   const metrics = await getMetrics();

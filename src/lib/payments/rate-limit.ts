@@ -1,8 +1,7 @@
 import 'server-only';
 
 import { createClient } from '@/lib/supabase/server';
-import type { SubscriptionTier } from './tiers';
-import { TIER_CONFIG } from './tiers';
+import { TIER_CONFIG, TIER_ORDER, type SubscriptionTier } from './tiers';
 
 export type RateLimitAction = 'chat' | 'photo' | 'vision';
 
@@ -43,7 +42,11 @@ export async function checkRateLimit(
   }
 
   const supabase = await createClient();
-  const today = new Date().toISOString().split('T')[0];
+
+  // Compute "today in Jakarta" — WIB (UTC+7). Using UTC date would misalign
+  // the window at WIB midnight crossover (17:00 UTC — 00:00 WIB).
+  // en-CA locale always formats as YYYY-MM-DD.
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
 
   // Count today's usage based on action type
   let count = 0;
@@ -107,9 +110,8 @@ export async function requireTier(
   minimumTier: SubscriptionTier,
 ): Promise<SubscriptionTier> {
   const userTier = await getUserTier(userId);
-  const order: SubscriptionTier[] = ['free', 'plus', 'pro', 'elite'];
 
-  if (order.indexOf(userTier) < order.indexOf(minimumTier)) {
+  if (TIER_ORDER.indexOf(userTier) < TIER_ORDER.indexOf(minimumTier)) {
     throw new Error(`Tier ${minimumTier} required, user has ${userTier}`);
   }
 
