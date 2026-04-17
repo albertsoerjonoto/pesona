@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,34 +32,36 @@ export default function LogPage() {
   const steps = (currentRoutine?.steps || []) as RoutineStep[];
   const completedSteps = ((currentLog?.completed_steps || []) as number[]);
 
+  const load = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setError(false);
+    try {
+      const supabase = createClient();
+      const [routinesRes, logsRes] = await Promise.all([
+        supabase.from('routines').select('*').eq('user_id', user.id).eq('active', true),
+        supabase.from('routine_logs').select('*').eq('user_id', user.id).eq('date', today),
+      ]);
+
+      const routines = routinesRes.data || [];
+      setMorningRoutine(routines.find((r: Routine) => r.type === 'morning') || null);
+      setEveningRoutine(routines.find((r: Routine) => r.type === 'evening') || null);
+
+      const logs = logsRes.data || [];
+      setMorningLog(logs.find((l: RoutineLog) => l.type === 'morning') || null);
+      setEveningLog(logs.find((l: RoutineLog) => l.type === 'evening') || null);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, today]);
+
   useEffect(() => {
     if (!user || fetchedRef.current) return;
     fetchedRef.current = true;
-
-    const load = async () => {
-      try {
-        const supabase = createClient();
-        const [routinesRes, logsRes] = await Promise.all([
-          supabase.from('routines').select('*').eq('user_id', user.id).eq('active', true),
-          supabase.from('routine_logs').select('*').eq('user_id', user.id).eq('date', today),
-        ]);
-
-        const routines = routinesRes.data || [];
-        setMorningRoutine(routines.find((r: Routine) => r.type === 'morning') || null);
-        setEveningRoutine(routines.find((r: Routine) => r.type === 'evening') || null);
-
-        const logs = logsRes.data || [];
-        setMorningLog(logs.find((l: RoutineLog) => l.type === 'morning') || null);
-        setEveningLog(logs.find((l: RoutineLog) => l.type === 'evening') || null);
-      } catch {
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     load();
-  }, [user, today]);
+  }, [user, load]);
 
   const toggleStep = async (stepNumber: number) => {
     if (!user || !currentRoutine || saving) return;
@@ -137,7 +139,7 @@ export default function LogPage() {
           <div className="text-4xl mb-4">😵</div>
           <p className="text-sm text-text-secondary mb-4">{t('routine.loadError')}</p>
           <button
-            onClick={() => { fetchedRef.current = false; setError(false); setLoading(true); }}
+            onClick={() => load()}
             className="px-6 py-2.5 bg-accent text-accent-fg font-medium rounded-xl hover:bg-accent-hover transition-all"
           >
             {t('error.retry')}

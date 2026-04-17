@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useLocale } from '@/lib/i18n';
 import { useDesktopLayout } from '@/hooks/useDesktopLayout';
@@ -47,26 +47,29 @@ export default function ProductsPage() {
   const [skinFilter, setSkinFilter] = useState<SkinType | 'all'>('all');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const supabase = createClient();
-        const { data, error: queryError } = await supabase
-          .from('products')
-          .select('*')
-          .order('brand', { ascending: true })
-          .order('name', { ascending: true });
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const supabase = createClient();
+      const { data, error: queryError } = await supabase
+        .from('products')
+        .select('*')
+        .order('brand', { ascending: true })
+        .order('name', { ascending: true });
 
-        if (queryError) throw queryError;
-        if (data) setProducts(data as unknown as Product[]);
-      } catch {
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+      if (queryError) throw queryError;
+      if (data) setProducts(data as unknown as Product[]);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const filtered = products.filter(p => {
     if (category !== 'all' && p.category !== category) return false;
@@ -153,7 +156,7 @@ export default function ProductsPage() {
           <div className="text-4xl mb-4">😵</div>
           <p className="text-sm text-text-secondary mb-4">{t('product.loadError')}</p>
           <button
-            onClick={() => { setError(false); setLoading(true); }}
+            onClick={() => load()}
             className="px-6 py-2.5 bg-accent text-accent-fg font-medium rounded-xl hover:bg-accent-hover transition-all"
           >
             {t('error.retry')}

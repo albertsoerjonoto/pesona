@@ -95,4 +95,63 @@ describe('Products Page', () => {
       expect(mockSupabaseClient.from).toHaveBeenCalledWith('products');
     });
   });
+
+  it('shows error state when fetch fails', async () => {
+    // Override the from() mock to throw
+    const originalFrom = mockSupabaseClient.from;
+    mockSupabaseClient.from = vi.fn(() => ({
+      select: vi.fn(() => ({
+        order: vi.fn(() => ({
+          order: vi.fn(() => Promise.reject(new Error('Network error'))),
+        })),
+      })),
+    })) as unknown as typeof mockSupabaseClient.from;
+
+    renderWithProviders(<ProductsPage />);
+
+    await waitFor(() => {
+      // Error UI should appear
+      const errorEl = screen.queryByText(/gagal memuat produk|failed to load products/i);
+      expect(errorEl).toBeInTheDocument();
+    });
+
+    // Reset the mock for other tests
+    mockSupabaseClient.from = originalFrom;
+  });
+
+  it('retry button calls load again after error', async () => {
+    const user = userEvent.setup();
+    // First call fails, second succeeds
+    let callCount = 0;
+    const originalFrom = mockSupabaseClient.from;
+    mockSupabaseClient.from = vi.fn(() => ({
+      select: vi.fn(() => ({
+        order: vi.fn(() => ({
+          order: vi.fn(() => {
+            callCount++;
+            if (callCount === 1) return Promise.reject(new Error('fail'));
+            return Promise.resolve({ data: [], error: null });
+          }),
+        })),
+      })),
+    })) as unknown as typeof mockSupabaseClient.from;
+
+    renderWithProviders(<ProductsPage />);
+
+    // Wait for error state
+    await waitFor(() => {
+      expect(screen.queryByText(/gagal memuat produk|failed to load/i)).toBeInTheDocument();
+    });
+
+    // Click retry — i18n key: "Coba Lagi" or "Try Again"
+    const retryBtn = screen.getByRole('button', { name: /coba lagi|try again/i });
+    await user.click(retryBtn);
+
+    // Wait for error to clear (second call succeeds)
+    await waitFor(() => {
+      expect(callCount).toBeGreaterThanOrEqual(2);
+    });
+
+    mockSupabaseClient.from = originalFrom;
+  });
 });

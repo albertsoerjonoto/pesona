@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -67,64 +67,66 @@ export default function DashboardPage() {
 
   const today = new Date().toISOString().split('T')[0];
 
+  const load = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setError(false);
+    try {
+      const supabase = createClient();
+
+      const [profileRes, skinRes, routinesRes, logsRes, checkinRes] = await Promise.all([
+        supabase.from('profiles').select('display_name, skin_quiz_completed').eq('id', user.id).single(),
+        supabase.from('skin_profiles').select('*').eq('user_id', user.id).single(),
+        supabase.from('routines').select('*').eq('user_id', user.id).eq('active', true),
+        supabase.from('routine_logs').select('*').eq('user_id', user.id).eq('date', today),
+        supabase.from('daily_checkins').select('*').eq('user_id', user.id).eq('date', today).single(),
+      ]);
+
+      if (profileRes.data) setProfile(profileRes.data);
+      if (skinRes.data) setSkinProfile(skinRes.data as unknown as SkinProfile);
+
+      const routines = routinesRes.data || [];
+      setMorningRoutine(routines.find((r: Routine) => r.type === 'morning') || null);
+      setEveningRoutine(routines.find((r: Routine) => r.type === 'evening') || null);
+
+      const logs = logsRes.data || [];
+      setMorningLog(logs.find((l: RoutineLog) => l.type === 'morning') || null);
+      setEveningLog(logs.find((l: RoutineLog) => l.type === 'evening') || null);
+
+      if (checkinRes.data) setTodayCheckin(checkinRes.data as unknown as DailyCheckin);
+
+      // Calculate streak
+      const { data: streakData } = await supabase
+        .from('daily_checkins')
+        .select('date')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false })
+        .limit(90);
+
+      if (streakData) {
+        let streak = 0;
+        const d = new Date();
+        for (const entry of streakData) {
+          const expected = d.toISOString().split('T')[0];
+          if (entry.date === expected) {
+            streak++;
+            d.setDate(d.getDate() - 1);
+          } else break;
+        }
+        setStreakCount(streak);
+      }
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, today]);
+
   useEffect(() => {
     if (!user || fetchedRef.current) return;
     fetchedRef.current = true;
-
-    const load = async () => {
-      try {
-        const supabase = createClient();
-
-        const [profileRes, skinRes, routinesRes, logsRes, checkinRes] = await Promise.all([
-          supabase.from('profiles').select('display_name, skin_quiz_completed').eq('id', user.id).single(),
-          supabase.from('skin_profiles').select('*').eq('user_id', user.id).single(),
-          supabase.from('routines').select('*').eq('user_id', user.id).eq('active', true),
-          supabase.from('routine_logs').select('*').eq('user_id', user.id).eq('date', today),
-          supabase.from('daily_checkins').select('*').eq('user_id', user.id).eq('date', today).single(),
-        ]);
-
-        if (profileRes.data) setProfile(profileRes.data);
-        if (skinRes.data) setSkinProfile(skinRes.data as unknown as SkinProfile);
-
-        const routines = routinesRes.data || [];
-        setMorningRoutine(routines.find((r: Routine) => r.type === 'morning') || null);
-        setEveningRoutine(routines.find((r: Routine) => r.type === 'evening') || null);
-
-        const logs = logsRes.data || [];
-        setMorningLog(logs.find((l: RoutineLog) => l.type === 'morning') || null);
-        setEveningLog(logs.find((l: RoutineLog) => l.type === 'evening') || null);
-
-        if (checkinRes.data) setTodayCheckin(checkinRes.data as unknown as DailyCheckin);
-
-        // Calculate streak
-        const { data: streakData } = await supabase
-          .from('daily_checkins')
-          .select('date')
-          .eq('user_id', user.id)
-          .order('date', { ascending: false })
-          .limit(90);
-
-        if (streakData) {
-          let streak = 0;
-          const d = new Date();
-          for (const entry of streakData) {
-            const expected = d.toISOString().split('T')[0];
-            if (entry.date === expected) {
-              streak++;
-              d.setDate(d.getDate() - 1);
-            } else break;
-          }
-          setStreakCount(streak);
-        }
-      } catch {
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     load();
-  }, [user, today]);
+  }, [user, load]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -190,7 +192,7 @@ export default function DashboardPage() {
           <div className="text-4xl mb-4">😵</div>
           <p className="text-sm text-text-secondary mb-4">{t('dashboard.loadError')}</p>
           <button
-            onClick={() => { fetchedRef.current = false; setError(false); setLoading(true); }}
+            onClick={() => load()}
             className="px-6 py-2.5 bg-accent text-accent-fg font-medium rounded-xl hover:bg-accent-hover transition-all"
           >
             {t('error.retry')}
