@@ -333,14 +333,14 @@ export default function OnboardingPage() {
     'w-full px-4 py-3.5 rounded-xl border border-border-strong bg-surface focus:outline-none focus:ring-1 focus:ring-input-ring focus:border-transparent transition-all duration-200 text-lg';
 
   if (authLoading || !ready) {
-    return <div className="min-h-screen bg-bg" />;
+    return <div className="min-h-dvh bg-bg" />;
   }
 
   // Determine if Continue button should be hidden (auto-advance steps)
   const isAutoAdvanceStep = step === 1 || step === 4 || step === 7;
 
   return (
-    <div className="max-w-lg mx-auto px-6 pt-8 pb-12 min-h-screen flex flex-col">
+    <div className="max-w-lg mx-auto px-6 pt-8 pb-12 min-h-dvh flex flex-col">
       {ToastContainer}
 
       {/* Progress Bar */}
