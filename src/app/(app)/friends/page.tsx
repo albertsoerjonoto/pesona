@@ -26,7 +26,6 @@ export default function ProgressPage() {
   const { t } = useLocale();
   const { isExpanded } = useDesktopLayout();
   const { showToast, ToastContainer } = useToast();
-  const fetchedRef = useRef(false);
 
   const [photos, setPhotos] = useState<PhotoProgress[]>([]);
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoProgress | null>(null);
@@ -54,9 +53,14 @@ export default function ProgressPage() {
   };
 
   useEffect(() => {
-    if (!user || fetchedRef.current) return;
-    fetchedRef.current = true;
+    if (!user) return;
 
+    // Note: no fetchedRef guard. In React 19 StrictMode dev, useEffect runs
+    // twice; the first closure's cleanup sets isMounted=false, and if a
+    // fetchedRef blocks the second run, setLoaded is never called — the
+    // page hangs in the pre-loaded ternary branch and never renders the
+    // empty state. Letting StrictMode double-fetch is harmless in dev and
+    // a no-op in prod.
     let isMounted = true;
     const load = async () => {
       const supabase = createClient();
