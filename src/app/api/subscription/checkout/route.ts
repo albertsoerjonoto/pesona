@@ -111,8 +111,14 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error('[checkout]', err);
+    // User-facing error string must be Bahasa — the frontend displays it
+    // verbatim on the failed-checkout screen. Keep the internal code in
+    // English for log greps + error tracking.
     return NextResponse.json(
-      { error: 'Checkout failed' },
+      {
+        error: 'Pembayaran tidak bisa diproses sekarang. Coba lagi ya.',
+        code: 'checkout_failed',
+      },
       { status: 500 },
     );
   }

@@ -1,19 +1,5 @@
 import { describe, it, expect } from 'vitest';
-
-const FORBIDDEN_TERMS = [
-  'rosacea', 'melasma', 'eczema', 'psoriasis', 'dermatitis',
-  'atopic', 'cystic acne', 'fungal acne', 'keratosis pilaris',
-  'perioral', 'post-inflammatory', 'PIH', 'PIE', 'comedones',
-  'hirsutism', 'alopecia', 'melanoma', 'seborrheic',
-  'seboroik', 'folliculitis', 'malassezia', 'xerosis',
-  'acne vulgaris', 'nodular acne',
-];
-
-function validateOutput(text: string): { valid: boolean; violations: string[] } {
-  const lower = text.toLowerCase();
-  const hits = FORBIDDEN_TERMS.filter(t => lower.includes(t.toLowerCase()));
-  return hits.length ? { valid: false, violations: hits } : { valid: true, violations: [] };
-}
+import { validateAIOutput as validateOutput } from '@/lib/ai/validate';
 
 function normalizeAnalysis(raw: unknown) {
   const analysis = raw as Record<string, unknown>;

@@ -137,6 +137,14 @@ export interface CoachResponse {
     image_url?: string;
   }[] | null;
   daily_tip?: string | null;
+  // Set when the coach output tripped the clinical-term validator twice
+  // and fell back to ESCALATION_TEMPLATE (Build Spec §5.3 / §5.5), or when
+  // Gemini proactively detects a §5.4 escalation trigger. The chat UI
+  // renders a Haloskin booking CTA when `needed === true`.
+  escalation?: {
+    needed: boolean;
+    reason: string;
+  } | null;
 }
 
 // LEGACY: Rajin types below — safe to remove when Pesona migration is complete.

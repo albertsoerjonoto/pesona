@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { PhotoProgress } from '@/lib/types';
 
 interface PhotoCompareProps {
@@ -19,8 +19,21 @@ interface AnalysisDelta {
 
 export default function PhotoCompare({ before, after, className = '' }: PhotoCompareProps) {
   const [sliderPosition, setSliderPosition] = useState(50);
+  const [containerWidth, setContainerWidth] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
+
+  // Track the container's width in state so the clipped "before" image can
+  // use its full pixel width. Accessing containerRef.current during render
+  // would violate react-hooks/refs.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => setContainerWidth(el.offsetWidth));
+    observer.observe(el);
+    setContainerWidth(el.offsetWidth);
+    return () => observer.disconnect();
+  }, []);
 
   const handleMove = useCallback((clientX: number) => {
     if (!containerRef.current || !isDragging.current) return;
@@ -98,7 +111,7 @@ export default function PhotoCompare({ before, after, className = '' }: PhotoCom
             src={before.photo_url}
             alt="Sebelum"
             className="absolute inset-0 w-full h-full object-cover"
-            style={{ width: containerRef.current ? `${containerRef.current.offsetWidth}px` : '100%' }}
+            style={{ width: containerWidth != null ? `${containerWidth}px` : '100%' }}
             draggable={false}
           />
         </div>

@@ -53,8 +53,7 @@ Schema supports 4 tiers (Free / Plus / Pro / Elite). UI currently shows 2 paid.
 ## Environment Variables
 Core:
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-- `GEMINI_API_KEY` — primary LLM for coach chat
-- `ANTHROPIC_API_KEY` — reserved for future background tasks
+- `GEMINI_API_KEY` — LLM for coach chat, vision analysis, routine generator, weekly report summary
 
 Payments (Midtrans):
 - `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, `MIDTRANS_IS_PRODUCTION`

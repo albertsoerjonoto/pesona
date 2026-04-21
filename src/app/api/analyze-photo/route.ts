@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@/lib/supabase/server';
+import { validateAIOutput, scrubForbiddenTerms } from '@/lib/ai/validate';
 
 export const maxDuration = 60;
-
-const FORBIDDEN_TERMS = [
-  'rosacea', 'melasma', 'eczema', 'psoriasis', 'dermatitis',
-  'atopic', 'cystic acne', 'fungal acne', 'keratosis pilaris',
-  'perioral', 'post-inflammatory', 'PIH', 'PIE', 'comedones',
-  'hirsutism', 'alopecia', 'melanoma', 'seborrheic',
-  'seboroik', 'folliculitis', 'malassezia', 'xerosis',
-  'acne vulgaris', 'nodular acne',
-];
 
 const VISION_PROMPT = `Kamu menganalisis foto progress skincare user Indonesia. Return ONLY valid JSON.
 
@@ -38,12 +30,6 @@ Jika terlihat kondisi serius (luka tak sembuh, perubahan tahi lalat, ruam parah)
 - Set escalation_reason = alasan user-friendly
 
 INGAT: kamu BUKAN dokter. Analisis ini untuk tracking wellness saja.`;
-
-function validateOutput(text: string): { valid: boolean; violations: string[] } {
-  const lower = text.toLowerCase();
-  const hits = FORBIDDEN_TERMS.filter(t => lower.includes(t.toLowerCase()));
-  return hits.length ? { valid: false, violations: hits } : { valid: true, violations: [] };
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -149,7 +135,7 @@ export async function POST(req: NextRequest) {
     const rawText = response.text || '';
 
     // Validate for forbidden clinical terms
-    const validation = validateOutput(rawText);
+    const validation = validateAIOutput(rawText);
 
     let analysis;
     try {
@@ -167,15 +153,11 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    // If forbidden terms found, clean them from the response
+    // If forbidden terms found, scrub them in-place before persisting
     if (!validation.valid) {
-      const cleanStr = JSON.stringify(analysis);
-      let cleaned = cleanStr;
-      for (const term of validation.violations) {
-        const regex = new RegExp(term, 'gi');
-        cleaned = cleaned.replace(regex, 'kondisi kulit');
-      }
-      analysis = JSON.parse(cleaned);
+      analysis = JSON.parse(
+        scrubForbiddenTerms(JSON.stringify(analysis), validation.violations),
+      );
     }
 
     // Ensure all expected fields exist

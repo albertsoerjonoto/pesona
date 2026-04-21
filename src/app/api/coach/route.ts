@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@/lib/supabase/server';
+import {
+  validateAIOutput,
+  scrubForbiddenTerms,
+  ESCALATION_TEMPLATE,
+} from '@/lib/ai/validate';
+import { checkRateLimit, getUserTier } from '@/lib/payments/rate-limit';
+import { trackServerEvent, shutdownPostHog } from '@/lib/analytics/posthog-server';
 
 export const maxDuration = 60;
 
@@ -22,21 +29,31 @@ CAPABILITIES:
 - Explain ingredients in simple terms (niacinamide, hyaluronic acid, retinol, etc.)
 
 STRICT RULES — WAJIB:
-1. JANGAN PERNAH gunakan istilah klinis: "rosacea", "melasma", "dermatitis", "xerosis", "seborrheic", "acne vulgaris"
-2. Gunakan: "kusam", "berjerawat", "berminyak", "kering", "bruntusan", "flek hitam", "komedo", "kemerahan"
+1. JANGAN PERNAH gunakan istilah klinis: rosacea, melasma, eczema, psoriasis, dermatitis, atopic, cystic acne, fungal acne, keratosis pilaris, perioral, post-inflammatory, PIH, PIE, comedones, hirsutism, alopecia, melanoma, seborrheic, seboroik, folliculitis, malassezia, xerosis, acne vulgaris, nodular acne
+2. Gunakan bahasa user-friendly: kusam, berjerawat, berminyak, kering, bruntusan, flek hitam, komedo, kemerahan, bekas jerawat, tekstur kasar, pori tersumbat, kulit sensitif
 3. JANGAN PERNAH diagnosa. Say "kayaknya" (seems like), "mungkin" (maybe)
 4. JANGAN PERNAH rekomendasikan obat resep
-5. Jika gejala serius (cystic acne parah, ruam menyebar, luka tak sembuh): "Hmm, ini kayaknya perlu dicek sama dokter kulit ya. Aku coach, bukan dokter, jadi untuk yang ini lebih aman kalau kamu konsul ke dermatologist"
+5. ESCALATION — MANDATORY. If the user's message matches ANY of these categories, set "escalation": { "needed": true, "reason": "<short user-friendly Bahasa string, e.g. 'kondisi kulit yang butuh pemeriksaan dokter'>" } in your JSON, set "message" to the EXACT template in §5b below, and set routine_suggestion, product_recommendations, and daily_tip to null:
+   a) Deep, painful, or pus-filled breakouts; cysts; rapid worsening; OR 6+ weeks with no improvement
+   b) Sudden mole changes; unusual bumps; lesions that do not heal; severe allergic reactions
+   c) Direct medical questions like "Apakah aku punya [kondisi]?" OR requests for prescription dosage
+   d) Pregnancy or breastfeeding + specific ingredient safety questions
+   e) Known medical condition or currently on specific medications
+   f) GLP-1 / Ozempic / Wegovy / Mounjaro / Saxenda questions
+   g) BMI ≥ 30 with comorbidities OR any suspected eating-disorder signal
+5b. EXACT ESCALATION TEMPLATE for the "message" field (copy verbatim, do not paraphrase):
+   "Hmm, yang kamu ceritain kedengarannya butuh dilihat langsung sama dermatologist biar dapat pemeriksaan dan saran yang tepat. Aku bisa bantu kasih info umum dan rekomendasi produk basic, tapi untuk kondisi kayak gini, konsultasi dokter lebih aman ya. Mau aku bantu booking konsultasi online lewat Haloskin (Halodoc)? Biasanya Rp 25.000–50.000 per konsultasi dan kamu bisa dapat jawaban dari dokter beneran dalam hitungan jam."
 6. JANGAN PERNAH klaim produk bisa "cure" atau "treat" — gunakan "membantu", "bisa memperbaiki", "cocok untuk"
-7. SELALU mulai dengan sesuatu yang positif atau encouraging
+7. SELALU mulai dengan sesuatu yang positif atau encouraging (kecuali escalation — escalation template langsung, no opener)
 8. All product recommendations must be BPOM-registered
 
 RESPONSE FORMAT — Return valid JSON:
 {
-  "message": "conversational response in user's language",
+  "message": "conversational response in user's language (or the EXACT escalation template if escalating)",
   "routine_suggestion": { "type": "morning or evening", "steps": [{ "step_number": 1, "category": "cleanser", "product_name": "...", "product_brand": "...", "instruction": "..." }] } or null,
   "product_recommendations": [{ "name": "...", "brand": "...", "reason": "..." }] or null,
-  "daily_tip": "short wellness tip" or null
+  "daily_tip": "short wellness tip" or null,
+  "escalation": { "needed": true, "reason": "short user-friendly Bahasa string" } or null
 }
 
 Always respond in the SAME language the user writes in. Keep "message" conversational and warm.`;
@@ -54,6 +71,28 @@ export async function POST(req: NextRequest) {
 
     if (!message?.trim() && !image_url) {
       return NextResponse.json({ error: 'Message required' }, { status: 400 });
+    }
+
+    // Enforce Free-tier 3 msg/day cap (Build Spec §10.1). Paid tiers return
+    // `Infinity` and allowed=true in checkRateLimit, so the gate is a no-op
+    // for them. On 429 the client opens PaywallModal with trigger=chat_limit.
+    const tier = await getUserTier(user.id);
+    const rateLimit = await checkRateLimit(user.id, tier, 'chat');
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: 'rate_limited',
+          paywall: true,
+          trigger: 'chat_limit',
+          tier,
+          limit: rateLimit.limit,
+          remaining: rateLimit.remaining,
+          reset_at: rateLimit.resetAt,
+          message:
+            'Kamu udah mentok limit chat harian di tier gratis. Upgrade ke Pesona Plus untuk unlimited chat ya!',
+        },
+        { status: 429 },
+      );
     }
 
     // Fetch user context in parallel (acts as pre-loaded "tool results")
@@ -182,23 +221,7 @@ export async function POST(req: NextRequest) {
       userParts.push({ text: `Context about this user:\n${context}\n\nUser message: ${message}` });
     }
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        ...geminiHistory,
-        { role: 'user', parts: userParts },
-      ],
-      config: {
-        systemInstruction: SYSTEM_PROMPT,
-        temperature: 0.8,
-        maxOutputTokens: 2048,
-        responseMimeType: 'application/json',
-      },
-    });
-
-    const rawText = response.text || '';
-
-    // Parse and validate JSON response
+    // Parsed response shape — also used by the retry loop
     type ProductRec = {
       name: string;
       brand: string;
@@ -212,33 +235,118 @@ export async function POST(req: NextRequest) {
       halal_certified?: boolean;
       image_url?: string;
     };
-    let parsed: {
+    type Parsed = {
       message: string;
       routine_suggestion?: { type: string; steps: unknown[] } | null;
       product_recommendations?: ProductRec[] | null;
       daily_tip?: string | null;
+      escalation?: { needed: boolean; reason: string } | null;
     };
-    try {
-      const raw = JSON.parse(rawText);
-      // Validate shape — only accept expected fields with correct types
-      parsed = {
-        message: typeof raw.message === 'string' ? raw.message : rawText,
-        routine_suggestion: raw.routine_suggestion && typeof raw.routine_suggestion === 'object' && typeof raw.routine_suggestion.type === 'string'
-          ? { type: raw.routine_suggestion.type, steps: Array.isArray(raw.routine_suggestion.steps) ? raw.routine_suggestion.steps : [] }
-          : null,
-        product_recommendations: Array.isArray(raw.product_recommendations)
-          ? raw.product_recommendations.filter((r: unknown) => r && typeof r === 'object' && 'name' in (r as Record<string, unknown>)).slice(0, 10)
-          : null,
-        daily_tip: typeof raw.daily_tip === 'string' ? raw.daily_tip : null,
-      };
-    } catch {
-      parsed = { message: rawText, routine_suggestion: null, product_recommendations: null, daily_tip: null };
+
+    const callGemini = async (systemAppend?: string): Promise<{ rawText: string; parsed: Parsed }> => {
+      const resp = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          ...geminiHistory,
+          { role: 'user', parts: userParts },
+        ],
+        config: {
+          systemInstruction: systemAppend
+            ? `${SYSTEM_PROMPT}\n\n${systemAppend}`
+            : SYSTEM_PROMPT,
+          temperature: 0.8,
+          maxOutputTokens: 2048,
+          responseMimeType: 'application/json',
+        },
+      });
+      const rawText = resp.text || '';
+      let parsed: Parsed;
+      try {
+        const raw = JSON.parse(rawText);
+        parsed = {
+          message: typeof raw.message === 'string' ? raw.message : rawText,
+          routine_suggestion: raw.routine_suggestion && typeof raw.routine_suggestion === 'object' && typeof raw.routine_suggestion.type === 'string'
+            ? { type: raw.routine_suggestion.type, steps: Array.isArray(raw.routine_suggestion.steps) ? raw.routine_suggestion.steps : [] }
+            : null,
+          product_recommendations: Array.isArray(raw.product_recommendations)
+            ? raw.product_recommendations.filter((r: unknown) => r && typeof r === 'object' && 'name' in (r as Record<string, unknown>)).slice(0, 10)
+            : null,
+          daily_tip: typeof raw.daily_tip === 'string' ? raw.daily_tip : null,
+          // Trust Gemini's proactive escalation only if the model set both
+          // `needed: true` and a non-empty reason — anything else collapses
+          // to null so the chat UI never renders a CTA without real signal.
+          escalation:
+            raw.escalation &&
+            typeof raw.escalation === 'object' &&
+            raw.escalation.needed === true &&
+            typeof raw.escalation.reason === 'string' &&
+            raw.escalation.reason.length > 0
+              ? { needed: true, reason: raw.escalation.reason }
+              : null,
+        };
+      } catch {
+        parsed = { message: rawText, routine_suggestion: null, product_recommendations: null, daily_tip: null };
+      }
+      return { rawText, parsed };
+    };
+
+    // First call
+    let { rawText, parsed } = await callGemini();
+
+    // Belt-and-suspenders clinical-term check (Build Spec §5.3 / §7.3):
+    // validate every user-visible field, retry once with a stricter prompt,
+    // and fall back to the escalation template on second failure.
+    const combinedText = (text: Parsed) =>
+      [
+        text.message,
+        text.daily_tip ?? '',
+        JSON.stringify(text.routine_suggestion ?? ''),
+        JSON.stringify(text.product_recommendations ?? ''),
+      ].join(' ');
+
+    let validation = validateAIOutput(combinedText(parsed));
+    if (!validation.valid) {
+      const retry = await callGemini(
+        `STRICT: do not use ANY of the following clinical terms in your response: ${validation.violations.join(', ')}. Use user-friendly Bahasa Indonesia alternatives (e.g. "kemerahan", "flek hitam", "bruntusan", "kulit kering").`,
+      );
+      validation = validateAIOutput(combinedText(retry.parsed));
+      if (validation.valid) {
+        rawText = retry.rawText;
+        parsed = retry.parsed;
+      } else {
+        // Both attempts tripped the validator — fall back to the spec §5.5
+        // escalation template and drop any routine/product output since it
+        // was generated under the tainted run.
+        parsed = {
+          message: ESCALATION_TEMPLATE,
+          routine_suggestion: null,
+          product_recommendations: null,
+          daily_tip: null,
+          escalation: {
+            needed: true,
+            reason: `clinical-term-fallback: ${validation.violations.join(', ')}`,
+          },
+        };
+        rawText = JSON.stringify(parsed);
+      }
     }
 
     // Enrich product_recommendations with data from products table
     if (parsed.product_recommendations && parsed.product_recommendations.length > 0) {
       const enriched = await enrichProductRecs(supabase, parsed.product_recommendations);
       parsed.product_recommendations = enriched;
+    }
+
+    // Fire PostHog event whenever we're about to tell the user to see a
+    // dermatologist (either from Gemini proactively catching a §5.4 trigger
+    // or from the validator falling back to ESCALATION_TEMPLATE). Tracks
+    // the `escalation_triggered` event already declared in events.ts.
+    if (parsed.escalation?.needed) {
+      trackServerEvent(user.id, 'escalation_triggered', {
+        reason: parsed.escalation.reason,
+      });
+      // Don't await — trackServerEvent is fire-and-forget; shutdownPostHog
+      // only matters in cron/webhook paths where the function will exit.
     }
 
     // Save assistant message
@@ -250,6 +358,7 @@ export async function POST(req: NextRequest) {
         routine_suggestion: parsed.routine_suggestion || null,
         product_recommendations: parsed.product_recommendations || null,
         daily_tip: parsed.daily_tip || null,
+        escalation: parsed.escalation || null,
       },
     });
 
@@ -258,6 +367,12 @@ export async function POST(req: NextRequest) {
       compressMemory(user.id, apiKey).catch(err => {
         console.error('Memory compression failed:', err);
       });
+    }
+
+    // If we fired an escalation event, flush PostHog before the response
+    // closes so the event isn't dropped when the lambda/server goes cold.
+    if (parsed.escalation?.needed) {
+      await shutdownPostHog();
     }
 
     return NextResponse.json(parsed);
@@ -383,8 +498,17 @@ async function compressMemory(userId: string, apiKey: string) {
     config: { temperature: 0.3, maxOutputTokens: 512 },
   });
 
-  const summary = response.text || '';
-  if (!summary) return;
+  const rawSummary = response.text || '';
+  if (!rawSummary) return;
+
+  // Defense-in-depth (Build Spec §5.3): the summary gets injected into
+  // future system prompts as context, so scrub any clinical terms before
+  // persisting — otherwise a Gemini slip here silently biases every
+  // subsequent coach response.
+  const validation = validateAIOutput(rawSummary);
+  const summary = validation.valid
+    ? rawSummary
+    : scrubForbiddenTerms(rawSummary, validation.violations);
 
   await supabase.from('coach_memory').insert({
     user_id: userId,

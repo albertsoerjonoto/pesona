@@ -48,7 +48,6 @@
 | Variable | Description |
 |----------|-------------|
 | `NEXT_PUBLIC_APP_URL` | App URL (https://pesona.io) |
-| `ANTHROPIC_API_KEY` | Reserved for future use |
 
 ---
 

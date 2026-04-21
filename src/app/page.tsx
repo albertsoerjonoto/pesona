@@ -87,6 +87,58 @@ export default function LandingPage() {
               {t('landing.priceFrom')}
             </p>
           </div>
+
+          {/* Trust strip — verifiable claims only. Kept honest on purpose;
+              deliberately no fake "1,243 users" count until we have real
+              PostHog numbers to wire in. Swap the three badges for a
+              community counter once MAU ≥ 1,000. */}
+          <div className="mt-14 pt-8 border-t border-border">
+            <p className="text-[11px] uppercase tracking-widest text-text-tertiary mb-5 font-semibold">
+              Dibuat khusus untuk kulit Indonesia
+            </p>
+            <div className="flex flex-wrap justify-center items-center gap-x-8 gap-y-5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0" aria-hidden="true">
+                  <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-text-primary leading-tight">BPOM</p>
+                  <p className="text-xs text-text-tertiary leading-tight">Produk terverifikasi</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0" aria-hidden="true">
+                  <span className="text-base font-bold text-amber-600 dark:text-amber-400">حلال</span>
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-text-primary leading-tight">Halal</p>
+                  <p className="text-xs text-text-tertiary leading-tight">Filter tersedia</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-full bg-accent-surface flex items-center justify-center shrink-0" aria-hidden="true">
+                  <svg className="w-5 h-5 text-accent-text" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.05 4.575a1.575 1.575 0 10-3.15 0v3m3.15-3v-1.5a1.575 1.575 0 013.15 0v1.5m-3.15 0l.075 5.925m3.075.75V4.575m0 0a1.575 1.575 0 013.15 0V15M6.9 7.575a1.575 1.575 0 10-3.15 0v8.175a6.75 6.75 0 006.75 6.75h2.018a5.25 5.25 0 003.712-1.538l1.732-1.732a5.25 5.25 0 001.538-3.712l.003-2.024a1.575 1.575 0 00-1.577-1.577H16.65a1.575 1.575 0 00-1.577 1.577l.001 1.42" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-text-primary leading-tight">Bahasa native</p>
+                  <p className="text-xs text-text-tertiary leading-tight">Bukan translated</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center shrink-0" aria-hidden="true">
+                  <span className="text-lg">🧕</span>
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-text-primary leading-tight">Hijabi + tropis</p>
+                  <p className="text-xs text-text-tertiary leading-tight">Ramadan-aware</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

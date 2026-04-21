@@ -2,13 +2,18 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/lib/i18n';
 import { useDesktopLayout } from '@/hooks/useDesktopLayout';
 import { useToast } from '@/components/Toast';
 import { cn } from '@/lib/utils';
+import { HALOSKIN_URL } from '@/lib/ai/validate';
 import type { CoachResponse } from '@/lib/types';
+
+// Lazy-load paywall — only pulled in when the user hits the Free-tier cap
+const PaywallModal = dynamic(() => import('@/components/PaywallModal'), { ssr: false });
 
 interface ChatMsg {
   id: string;
@@ -18,6 +23,7 @@ interface ChatMsg {
     routine_suggestion?: CoachResponse['routine_suggestion'];
     product_recommendations?: CoachResponse['product_recommendations'];
     daily_tip?: CoachResponse['daily_tip'];
+    escalation?: CoachResponse['escalation'];
   };
   created_at: string;
 }
@@ -41,6 +47,7 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [savingRoutine, setSavingRoutine] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -109,6 +116,14 @@ export default function ChatPage() {
         body: JSON.stringify({ message: text.trim() }),
       });
 
+      // Free-tier daily chat cap hit (Build Spec §10.1) — open paywall, keep
+      // the user's last bubble visible as context for what they were asking.
+      if (res.status === 429) {
+        setPaywallOpen(true);
+        setSending(false);
+        return;
+      }
+
       if (!res.ok) throw new Error('Failed');
 
       const data: CoachResponse = await res.json();
@@ -121,6 +136,7 @@ export default function ChatPage() {
           routine_suggestion: data.routine_suggestion,
           product_recommendations: data.product_recommendations,
           daily_tip: data.daily_tip,
+          escalation: data.escalation,
         },
         created_at: new Date().toISOString(),
       };
@@ -288,6 +304,35 @@ export default function ChatPage() {
               )}>
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
 
+                {/* Haloskin escalation CTA (Build Spec §5.4 / §5.5) */}
+                {msg.metadata?.escalation?.needed && (
+                  <div className="mt-3 bg-warning-surface rounded-xl p-3 border border-warning-border">
+                    <div className="flex items-start gap-2 mb-2">
+                      <span className="text-lg shrink-0" aria-hidden="true">🏥</span>
+                      <div>
+                        <p className="text-sm font-semibold text-warning-text">
+                          Konsultasi dermatologist
+                        </p>
+                        <p className="text-xs text-text-secondary mt-0.5">
+                          Rp 25.000–50.000 per konsultasi · jawaban dari dokter beneran
+                        </p>
+                      </div>
+                    </div>
+                    <a
+                      href={HALOSKIN_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center justify-center gap-1.5 w-full py-2 bg-warning-text text-white text-xs font-semibold rounded-lg hover:opacity-90 transition-all active:scale-[0.98]"
+                    >
+                      Booking Haloskin
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                      </svg>
+                    </a>
+                  </div>
+                )}
+
                 {/* Product recommendations */}
                 {msg.metadata?.product_recommendations && msg.metadata.product_recommendations.length > 0 && (
                   <div className="mt-3 space-y-2">
@@ -433,6 +478,12 @@ export default function ChatPage() {
           </button>
         </div>
       </div>
+
+      <PaywallModal
+        open={paywallOpen}
+        onClose={() => setPaywallOpen(false)}
+        trigger="chat_limit"
+      />
     </div>
   );
 }

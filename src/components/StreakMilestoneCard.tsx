@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { MILESTONE_MESSAGES } from '@/lib/celebration';
+import { shareElementAsCard } from '@/lib/share-card';
 
 interface StreakMilestoneCardProps {
   streak: number;
@@ -25,36 +26,13 @@ export default function StreakMilestoneCard({ streak, userName, onClose }: Strea
   const handleShare = async () => {
     if (!cardRef.current) return;
     setDownloading(true);
-    try {
-      // Use html-to-image if available, fallback to canvas snapshot
-      const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(cardRef.current, {
-        pixelRatio: 2,
-        backgroundColor: '#CE3D66',
-      });
-
-      // Try Web Share API first (mobile)
-      if (navigator.share && navigator.canShare) {
-        const blob = await (await fetch(dataUrl)).blob();
-        const file = new File([blob], `pesona-streak-${streak}.png`, { type: 'image/png' });
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: `${streak} hari streak Pesona!`,
-            text: message.subtitle,
-          });
-          setDownloading(false);
-          return;
-        }
-      }
-
-      // Fallback: download
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = `pesona-streak-${streak}.png`;
-      a.click();
-    } catch {
-      // If html-to-image fails, show message
+    const outcome = await shareElementAsCard(cardRef.current, {
+      title: `${streak} hari streak Pesona!`,
+      text: message.subtitle,
+      filename: `pesona-streak-${streak}.png`,
+      backgroundColor: '#CE3D66',
+    });
+    if (outcome === 'failed') {
       alert('Screenshot gagal — coba screenshot manual ya');
     }
     setDownloading(false);
