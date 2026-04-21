@@ -187,6 +187,59 @@ describe('Clinical-term validator on coach output', () => {
   });
 });
 
+describe('Escalation field parser (mirrors /api/coach/route.ts)', () => {
+  // This helper mirrors the `escalation` branch of the Parsed coercion in
+  // coach/route.ts:callGemini. Keep it in sync if the route-side logic
+  // changes — otherwise we'll silently accept malformed escalation
+  // payloads and render Haloskin CTAs without real signal.
+  function parseEscalation(raw: unknown): { needed: boolean; reason: string } | null {
+    const e = (raw && typeof raw === 'object')
+      ? (raw as { escalation?: unknown }).escalation
+      : null;
+    return e &&
+      typeof e === 'object' &&
+      (e as { needed?: unknown }).needed === true &&
+      typeof (e as { reason?: unknown }).reason === 'string' &&
+      ((e as { reason: string }).reason).length > 0
+      ? { needed: true, reason: (e as { reason: string }).reason }
+      : null;
+  }
+
+  it('accepts needed=true with non-empty reason', () => {
+    const r = parseEscalation({
+      escalation: { needed: true, reason: 'Kondisi ini perlu dicek dokter' },
+    });
+    expect(r).toEqual({ needed: true, reason: 'Kondisi ini perlu dicek dokter' });
+  });
+
+  it('rejects needed=false even with a reason', () => {
+    expect(parseEscalation({ escalation: { needed: false, reason: 'whatever' } })).toBeNull();
+  });
+
+  it('rejects truthy-but-non-true needed (string, number, etc.)', () => {
+    expect(parseEscalation({ escalation: { needed: 'yes', reason: 'x' } })).toBeNull();
+    expect(parseEscalation({ escalation: { needed: 1, reason: 'x' } })).toBeNull();
+  });
+
+  it('rejects empty reason', () => {
+    expect(parseEscalation({ escalation: { needed: true, reason: '' } })).toBeNull();
+  });
+
+  it('rejects missing reason', () => {
+    expect(parseEscalation({ escalation: { needed: true } })).toBeNull();
+  });
+
+  it('rejects non-string reason', () => {
+    expect(parseEscalation({ escalation: { needed: true, reason: 42 } })).toBeNull();
+  });
+
+  it('returns null when escalation is missing entirely', () => {
+    expect(parseEscalation({ message: 'hi' })).toBeNull();
+    expect(parseEscalation({})).toBeNull();
+    expect(parseEscalation(null)).toBeNull();
+  });
+});
+
 describe('Scrubber + escalation template', () => {
   it('replaces forbidden terms with "kondisi kulit"', () => {
     const out = scrubForbiddenTerms('She has rosacea and melasma.', ['rosacea', 'melasma']);

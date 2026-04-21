@@ -3,6 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@/lib/supabase/server';
 import {
   validateAIOutput,
+  scrubForbiddenTerms,
   ESCALATION_TEMPLATE,
 } from '@/lib/ai/validate';
 import { checkRateLimit, getUserTier } from '@/lib/payments/rate-limit';
@@ -497,8 +498,17 @@ async function compressMemory(userId: string, apiKey: string) {
     config: { temperature: 0.3, maxOutputTokens: 512 },
   });
 
-  const summary = response.text || '';
-  if (!summary) return;
+  const rawSummary = response.text || '';
+  if (!rawSummary) return;
+
+  // Defense-in-depth (Build Spec §5.3): the summary gets injected into
+  // future system prompts as context, so scrub any clinical terms before
+  // persisting — otherwise a Gemini slip here silently biases every
+  // subsequent coach response.
+  const validation = validateAIOutput(rawSummary);
+  const summary = validation.valid
+    ? rawSummary
+    : scrubForbiddenTerms(rawSummary, validation.violations);
 
   await supabase.from('coach_memory').insert({
     user_id: userId,
