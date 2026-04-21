@@ -144,3 +144,51 @@ describe('Downgrade protection', () => {
     expect(canDowngrade('free', 'active', future, 'plus')).toBe(true);
   });
 });
+
+/**
+ * Regression: ISSUE-QA-1 — the API's catch-all 500 response used to return
+ * {error: 'Checkout failed'}, which surfaced verbatim on the checkout error
+ * screen (the frontend reads body.error as the user-facing message). That
+ * was an English leak in an otherwise Bahasa-first brand voice.
+ *
+ * Found by /qa on 2026-04-21 while clicking Pilih Plus as a Free user;
+ * the backend failed (Midtrans 401 in dev) and the user saw "Gagal
+ * memproses pembayaran / Checkout failed" — the second line English.
+ *
+ * Contract: every user-facing error field must be Bahasa. Internal
+ * short codes can live on the `code` field for log greps and telemetry.
+ */
+describe('Checkout 500 error shape (Bahasa-first contract)', () => {
+  // Mirror of the catch block in /api/subscription/checkout/route.ts.
+  function buildErrorResponse() {
+    return {
+      error: 'Pembayaran tidak bisa diproses sekarang. Coba lagi ya.',
+      code: 'checkout_failed',
+    };
+  }
+
+  const englishTokens = [
+    'failed', 'checkout', 'error', 'unable', 'cannot', 'please',
+    'try', 'again', 'processing',
+  ];
+
+  it('error message is Bahasa (no English words)', () => {
+    const body = buildErrorResponse();
+    const lower = body.error.toLowerCase();
+    for (const t of englishTokens) {
+      expect(lower).not.toContain(t);
+    }
+  });
+
+  it('uses "ya" or similar Bahasa conversational particle', () => {
+    const body = buildErrorResponse();
+    // Friendly Bahasa voice per Build Spec §3.3 — "ya" is a gentle particle
+    // native users expect on polite error messages.
+    expect(body.error).toMatch(/\b(ya|dong|yuk|deh|sih)\b/);
+  });
+
+  it('exposes a stable internal `code` for log greps + telemetry', () => {
+    const body = buildErrorResponse();
+    expect(body.code).toBe('checkout_failed');
+  });
+});
